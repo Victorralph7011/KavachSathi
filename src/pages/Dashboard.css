@@ -1,0 +1,382 @@
+.dashboard-layout {
+  min-height: 100vh;
+  display: flex;
+  background: var(--obsidian);
+  color: var(--white);
+  overflow: hidden; /* Prevent scrolling if we want a fixed terminal view */
+}
+
+/* — Sidebar — */
+.dash-sidebar {
+  width: 260px;
+  background: #121212; /* Deep Slate Charcoal */
+  border-right: 1px solid var(--white-ghost);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 32px 0;
+  z-index: 10;
+}
+
+.dash-sidebar__top {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.dash-logo {
+  padding: 0 32px;
+}
+
+.dash-nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-nav-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 32px;
+  color: var(--white-dim);
+  text-align: left;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.dash-nav-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--white);
+}
+
+.dash-nav-item.active {
+  color: var(--neon);
+  background: rgba(118, 185, 0, 0.05);
+}
+
+.dash-nav-item.active svg {
+  color: var(--neon);
+  filter: drop-shadow(0 0 8px var(--neon-glow-strong));
+}
+
+.dash-nav-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.active-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--neon);
+  box-shadow: 0 0 12px var(--neon-glow-strong);
+  display: none;
+}
+
+.dash-nav-item.active .active-bar {
+  display: block;
+}
+
+.dash-sidebar__bottom {
+  padding: 0 24px;
+}
+
+.cobrand-box {
+  padding: 16px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(0,0,0,0.5);
+}
+
+.cobrand-logos {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* — Main Content — */
+.dash-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+.dash-header {
+  padding: 40px 64px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--white-ghost);
+  padding-bottom: 32px;
+}
+
+.dash-header__title {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dash-ticker {
+  background: rgba(0,0,0,0.5);
+  border-radius: 100px;
+  padding: 8px 24px;
+  max-width: 500px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+}
+
+.ticker-track {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  /* simple marquee animation for effect */
+  animation: marquee 20s linear infinite;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.ticker-item {
+  display: flex;
+  gap: 12px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.ticker-divider {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--white-ghost);
+}
+
+/* Stage */
+.dash-stage {
+  flex: 1;
+  padding: 40px 64px;
+  position: relative;
+}
+
+.dash-connections {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.dash-stage__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  height: 100%;
+}
+
+.dash-panel {
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 15, 15, 0.7);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--white-ghost);
+}
+
+/* Billing Table */
+.billing-table {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.billing-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  align-items: center;
+  padding: 16px 24px;
+  border-radius: 8px;
+}
+
+.header-row {
+  color: var(--white-muted);
+  font-size: 10px;
+  padding: 0 24px 8px;
+}
+
+.data-row {
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.02);
+}
+
+.data-row.active-row {
+  border-color: rgba(118, 185, 0, 0.3);
+  background: rgba(118, 185, 0, 0.05);
+  box-shadow: inset 0 0 20px rgba(118, 185, 0, 0.05);
+}
+
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  text-align: center;
+  width: max-content;
+}
+
+.status-badge.success {
+  background: rgba(255,255,255,0.1);
+  color: var(--white);
+}
+
+.status-badge.pending {
+  background: rgba(118, 185, 0, 0.2);
+  color: var(--neon);
+  border: 1px solid var(--neon);
+}
+
+/* Claim Log */
+.claim-log {
+  display: flex;
+  flex-direction: column;
+  padding-left: 20px;
+}
+
+.log-entry {
+  position: relative;
+  display: flex;
+  gap: 24px;
+  padding: 16px 0;
+}
+
+.log-entry.payout-active {
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--neon);
+  box-shadow: 0 0 30px rgba(118, 185, 0, 0.1);
+  margin-top: 16px;
+  background: rgba(0,0,0,0.6);
+}
+
+.log-entry__icon {
+  position: absolute;
+  left: -32px;
+  top: 16px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--obsidian);
+  z-index: 2;
+}
+
+.log-entry.payout-active .log-entry__icon {
+  left: -12px;
+  top: 24px;
+}
+
+.log-line-connector {
+  position: absolute;
+  left: 8px;
+  top: 40px;
+  width: 1px;
+  height: 60px;
+  background: var(--white-ghost);
+  z-index: 1;
+}
+
+.status-dot-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neon);
+  box-shadow: 0 0 10px var(--neon-glow-strong);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* — Overlays — */
+.decision-engine-panel {
+  position: fixed;
+  right: 64px;
+  bottom: 64px;
+  width: 320px;
+  background: rgba(10, 10, 10, 0.85);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  z-index: 100;
+}
+
+.engine-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.gauge-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.gauge-value {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.formula-box {
+  background: rgba(255,255,255,0.02);
+  padding: 16px;
+  border-radius: 8px;
+  border-left: 2px solid var(--neon);
+}
+
+/* Responsive constraints since it's a fixed terminal */
+@media (max-width: 1200px) {
+  .dash-stage__grid {
+    grid-template-columns: 1fr;
+  }
+  .dash-main {
+    overflow-y: auto;
+  }
+}
+
+/* CRT Glow Effect for Live Feed */
+.claim-log .text-mono {
+  text-shadow: 0 0 4px var(--neon-glow);
+  filter: contrast(1.1) brightness(1.2);
+}
+
+.claim-log p.text-mono {
+  letter-spacing: 0.05em;
+}

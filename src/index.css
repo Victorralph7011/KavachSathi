@@ -1,0 +1,237 @@
+/* ============================================
+   KavachSathi — Locomotive × Nvidia Neon
+   Design System
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700&family=Inter:wght@100;200;300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+
+/* — Custom Properties — */
+:root {
+  --obsidian: #0A0A0A;
+  --obsidian-light: #111111;
+  --obsidian-lighter: #1A1A1A;
+  --neon: #39FF14;
+  --neon-dim: #2bcc10;
+  --neon-glow: rgba(57, 255, 20, 0.15);
+  --neon-glow-strong: rgba(57, 255, 20, 0.35);
+  --neon-ultra: rgba(57, 255, 20, 0.05);
+  --white: #F5F5F5;
+  --white-dim: rgba(245, 245, 245, 0.6);
+  --white-muted: rgba(245, 245, 245, 0.3);
+  --white-ghost: rgba(245, 245, 245, 0.08);
+
+  --amber: #FFB000;
+  --amber-glow: rgba(255, 176, 0, 0.15);
+  --red: #FF3B3B;
+  --red-glow: rgba(255, 59, 59, 0.15);
+
+  --zomato: #E23744;
+  --swiggy: #FF5200;
+  --uber: #000000;
+
+  --font-serif: 'Playfair Display', 'Georgia', serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  --glass-bg: rgba(20, 20, 20, 0.6);
+  --glass-border: rgba(245, 245, 245, 0.08);
+  --glass-blur: 16px;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+
+  --nav-height: 72px;
+}
+
+/* — Reset — */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: var(--obsidian);
+  color: var(--white);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  line-height: 1.6;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--neon);
+  color: var(--obsidian);
+}
+
+/* — Scrollbar — */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--obsidian);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--neon-dim);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon);
+}
+
+/* — Typography Scale — */
+.text-hero {
+  font-family: var(--font-serif);
+  font-size: clamp(4rem, 12vw, 14rem);
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+.text-display {
+  font-family: var(--font-serif);
+  font-size: clamp(2.5rem, 6vw, 7rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.text-heading {
+  font-family: var(--font-serif);
+  font-size: clamp(1.5rem, 3vw, 3.5rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.text-subheading {
+  font-family: var(--font-sans);
+  font-size: clamp(0.875rem, 1.2vw, 1.25rem);
+  font-weight: 300;
+  line-height: 1.5;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.text-body {
+  font-family: var(--font-sans);
+  font-size: clamp(0.9375rem, 1.1vw, 1.125rem);
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+  font-size: clamp(0.6875rem, 0.85vw, 0.875rem);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
+.text-label {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* — Glassmorphism — */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+}
+
+.glass-strong {
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(245, 245, 245, 0.12);
+}
+
+/* — Neon Glow — */
+.neon-text {
+  color: var(--neon);
+  text-shadow: 0 0 20px var(--neon-glow), 0 0 40px var(--neon-glow);
+}
+
+.neon-border {
+  border-color: var(--neon);
+  box-shadow: 0 0 15px var(--neon-glow), inset 0 0 15px var(--neon-glow);
+}
+
+/* — Dividers — */
+.divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--white-ghost), var(--neon-dim), var(--white-ghost), transparent);
+}
+
+.divider-neon {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--neon), transparent);
+}
+
+/* — Container — */
+.container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 clamp(1.5rem, 4vw, 4rem);
+}
+
+/* — Section Padding — */
+.section {
+  padding: clamp(4rem, 10vh, 10rem) 0;
+}
+
+/* — Utility — */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

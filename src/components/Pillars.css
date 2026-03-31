@@ -1,0 +1,293 @@
+.pillars {
+  position: relative;
+  padding: 6rem 0 8rem 0;
+  background-color: var(--obsidian);
+}
+
+/* — Header — */
+.pillars__header {
+  padding-bottom: 2rem;
+}
+
+.pillars__header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+/* ─── Risk Engine Formula Banner ─────────────────────────── */
+.pillars__formula-banner {
+  max-width: 1400px;
+  margin: 0 auto 3rem auto;
+  padding: 0 2rem;
+}
+
+.pillars__formula-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1.25rem 2rem;
+  border-radius: 14px;
+  border: 1px solid rgba(57, 255, 20, 0.12);
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.03) 0%, rgba(20, 20, 20, 0.6) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.pillars__formula-label {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--neon);
+  white-space: nowrap;
+}
+
+.formula-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neon);
+  box-shadow: 0 0 8px var(--neon-glow-strong), 0 0 20px var(--neon-glow);
+  animation: formulaDotPulse 2s ease-in-out infinite;
+}
+
+@keyframes formulaDotPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--neon-glow-strong), 0 0 20px var(--neon-glow); }
+  50% { opacity: 0.6; box-shadow: 0 0 4px var(--neon-glow); }
+}
+
+.pillars__formula-equation {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.formula-var {
+  color: var(--white);
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.formula-op {
+  color: var(--white-muted);
+  font-weight: 300;
+}
+
+.formula-val {
+  color: var(--neon);
+  font-weight: 500;
+}
+
+.pillars__formula-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--white-muted);
+  white-space: nowrap;
+}
+
+.pillars__formula-legend em {
+  color: var(--neon);
+  font-style: normal;
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+.formula-sep {
+  color: var(--white-ghost);
+  font-size: 1.2rem;
+}
+
+/* ─── Grid Layout ─────────────────────────────────────────── */
+.pillars__grid-container {
+  width: 100%;
+  padding: 0 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.pillars__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+
+/* ─── Pillar Card ─────────────────────────────────────────── */
+.pillar-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.pillar-card__inner {
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 15, 15, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.4s, transform 0.4s var(--ease-out-expo),
+              box-shadow 0.4s;
+}
+
+.pillar-card__inner:hover {
+  border-color: rgba(57, 255, 20, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(57, 255, 20, 0.06);
+}
+
+/* Corner glow */
+.pillar-card__inner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(57, 255, 20, 0.12) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.6s;
+  pointer-events: none;
+}
+
+.pillar-card__inner:hover::before {
+  opacity: 1;
+}
+
+/* ─── Header ─────────────────────────────────────────── */
+.pillar-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pillar-card__index {
+  font-family: var(--font-serif);
+  color: var(--neon);
+  opacity: 0.2;
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pillar-card__center {
+  color: var(--neon);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.pillar-card__header-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Icon ─────────────────────────────────────────── */
+.pillar-card__icon-wrap {
+  position: relative;
+  width: 90px;
+  height: 90px;
+}
+
+.pillar-icon {
+  width: 100%;
+  height: 100%;
+}
+
+.pillar-card__icon-glow {
+  position: absolute;
+  inset: -25%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(57, 255, 20, 0.12) 0%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+  animation: iconPulse 4s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+
+/* ─── Text ─────────────────────────────────────────── */
+.pillar-card__text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.pillar-card__subtitle {
+  color: var(--neon);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+}
+
+.pillar-card__title {
+  font-family: var(--font-serif);
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--white);
+  margin: 0;
+}
+
+.pillar-card__desc {
+  color: var(--white-dim);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+/* ─── Footer ─────────────────────────────────────────── */
+.pillar-card__footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.pillar-card__detail {
+  color: var(--white-muted);
+  font-size: 0.7rem;
+}
+
+/* ─── Responsive ─────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .pillars__formula-inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .pillars__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .pillars__grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .pillars__formula-equation {
+    font-size: 1rem;
+  }
+
+  .pillars__formula-legend {
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,163 @@
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding-top: var(--nav-height);
+}
+
+/* — Background Grid — */
+.hero__grid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 clamp(1.5rem, 4vw, 4rem);
+  pointer-events: none;
+}
+
+.hero__grid-line {
+  width: 1px;
+  height: 100%;
+  background: var(--white-ghost);
+}
+
+/* — Neon Orb — */
+.hero__orb {
+  position: absolute;
+  top: 20%;
+  right: 10%;
+  width: clamp(300px, 40vw, 600px);
+  height: clamp(300px, 40vw, 600px);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--neon-glow-strong) 0%, transparent 70%);
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+/* — Container — */
+.hero__container {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2rem, 4vh, 4rem);
+  padding-top: clamp(4rem, 10vh, 8rem);
+  padding-bottom: clamp(2rem, 6vh, 4rem);
+}
+
+/* — Meta — */
+.hero__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.hero__meta-divider {
+  width: 40px;
+  height: 1px;
+  background: var(--white-muted);
+}
+
+/* — Giant Title — */
+.hero__title-wrap {
+  position: relative;
+  will-change: transform;
+}
+
+.hero__title {
+  font-family: var(--font-serif);
+  font-size: clamp(3.5rem, 11.5vw, 13rem);
+  font-weight: 700;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: var(--white);
+  perspective: 1000px;
+}
+
+.hero__letter {
+  will-change: transform, opacity;
+  transition: color 0.3s;
+}
+
+.hero__letter:hover {
+  color: var(--neon);
+}
+
+.hero__title-line {
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--neon), var(--neon-dim), transparent);
+  transform-origin: left;
+}
+
+/* — Subtitle Row — */
+.hero__subtitle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  flex-wrap: wrap;
+  will-change: transform, opacity;
+}
+
+.hero__subtitle {
+  font-family: var(--font-sans);
+  font-size: clamp(1rem, 1.6vw, 1.375rem);
+  font-weight: 300;
+  line-height: 1.6;
+  max-width: 500px;
+  color: var(--white-dim);
+}
+
+.hero__risk-badge {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 24px;
+  border-radius: 12px;
+}
+
+/* — Scroll Indicator — */
+.hero__scroll-indicator {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: auto;
+}
+
+.hero__scroll-line {
+  width: 1px;
+  height: 40px;
+  background: var(--white-ghost);
+  border-radius: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero__scroll-dot {
+  width: 3px;
+  height: 12px;
+  background: var(--neon);
+  border-radius: 2px;
+  position: absolute;
+  left: -1px;
+  top: 0;
+  box-shadow: 0 0 8px var(--neon-glow-strong);
+}
+
+/* — Responsive — */
+@media (max-width: 768px) {
+  .hero__subtitle-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hero__risk-badge {
+    width: 100%;
+  }
+}

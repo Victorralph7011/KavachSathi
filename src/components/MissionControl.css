@@ -1,0 +1,183 @@
+/* — Toggle Button — */
+.mission-toggle {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: rgba(10, 10, 10, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  transition: all 0.3s var(--ease-out-expo);
+}
+
+.mission-toggle:hover,
+.mission-toggle.is-active {
+  border-color: var(--neon);
+  box-shadow: 0 0 20px var(--neon-glow);
+}
+
+.mission-toggle__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neon);
+  box-shadow: 0 0 8px var(--neon-glow-strong);
+  animation: togglePulse 2s infinite;
+}
+
+@keyframes togglePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* — Overlay Panel — */
+.mission-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 400px;
+  z-index: 999;
+  display: flex;
+  padding: 16px;
+  padding-bottom: 90px;
+}
+
+.mission-panel {
+  width: 100%;
+  height: 100%;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+}
+
+/* — Header — */
+.mission-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.mission-panel__close {
+  color: var(--white-muted);
+  transition: color 0.3s;
+}
+
+.mission-panel__close:hover {
+  color: var(--white);
+  transform: rotate(90deg);
+  transition: transform 0.4s var(--ease-out-expo), color 0.3s;
+}
+
+/* — Content — */
+.mission-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Custom scrollbar for panel */
+.mission-panel__content::-webkit-scrollbar {
+  width: 4px;
+}
+.mission-panel__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mission-panel__content::-webkit-scrollbar-thumb {
+  background: var(--white-ghost);
+  border-radius: 2px;
+}
+
+/* — Risk Display — */
+.risk-display {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.risk-display__value {
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 500;
+  text-shadow: 0 0 24px var(--neon-glow-strong);
+}
+
+.risk-formula {
+  padding: 8px 12px;
+  background: rgba(118, 185, 0, 0.05);
+  border-left: 2px solid var(--neon);
+  border-radius: 0 4px 4px 0;
+  color: var(--white-dim);
+}
+
+/* — Variables — */
+.variables-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.variable-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.variable-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.variable-progress {
+  height: 4px;
+  width: 100%;
+  background: var(--white-ghost);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.variable-progress__fill {
+  height: 100%;
+  background: var(--neon);
+  box-shadow: 0 0 6px var(--neon);
+  border-radius: 2px;
+}
+
+/* — Logs — */
+.system-logs {
+  margin-top: 32px;
+  padding: 16px;
+  background: var(--obsidian);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.log-line {
+  color: var(--white-dim);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .mission-overlay {
+    max-width: 100%;
+    padding: 0;
+    padding-bottom: 80px;
+  }
+  
+  .mission-panel {
+    border-radius: 0;
+    border-top: 1px solid var(--glass-border);
+  }
+}
