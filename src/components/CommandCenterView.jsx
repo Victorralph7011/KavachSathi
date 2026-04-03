@@ -1,205 +1,216 @@
 import { motion } from 'framer-motion';
-import { Shield, Wallet, Activity, ArrowRight, CloudRain, ShieldAlert, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { CloudRain, Thermometer, Download, Zap } from 'lucide-react';
 import DashSidebar from './DashSidebar';
-import '../pages/Dashboard.css';
+import { useCenterData } from '../hooks/useCenterData';
 import { downloadPolicyCertificate } from '../utils/generateCertificate';
+
+/* ─── Risk Ring ─── */
+function RiskRing({ score }) {
+  const radius = 52;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference * (1 - score / 100);
+
+  return (
+    <div className="relative w-[140px] h-[140px] shrink-0">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle cx="70" cy="70" r={radius} fill="none" stroke="#E5E7EB" strokeWidth="10" />
+        <motion.circle
+          cx="70" cy="70" r={radius}
+          fill="none" stroke="#0F7B6C" strokeWidth="10"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.5, ease: 'easeOut', delay: 0.5 }}
+          strokeLinecap="round"
+          transform="rotate(-90 70 70)"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-extrabold text-[#1A1A1A] leading-none">{score}%</span>
+        <span className="text-xs text-gray-500 font-medium mt-1">Risk Score</span>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ status }) {
+  const isPaid = status !== 'DYNAMIC_SURGE' && status !== 'surge';
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold
+      ${isPaid ? 'bg-[#DCFCE7] text-[#059669]' : 'bg-[#FEF3C7] text-[#E85D04]'}
+    `}>
+      {isPaid ? 'Paid' : 'Dynamic Surge'}
+    </span>
+  );
+}
+
+function TriggerBadge({ status }) {
+  if (status === 'RESOLVED') {
+    return <span className="badge-teal">Claim Initiated</span>;
+  }
+  return <span className="badge-amber">Monitoring</span>;
+}
 
 export default function CommandCenterView({ policy }) {
   const navigate = useNavigate();
+  const { payments, triggers } = useCenterData();
+
+  const zoneId = policy?.policyId || 'MAH-ZONE-04';
+  const riskScore = Math.round((policy?.riskScore || 0.82) * 100);
 
   return (
-    <div className="dashboard-layout">
-      
+    <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
+      {/* Background Environment */}
+      <div className="absolute inset-0 z-0">
+        <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+          <source src="/assets/videos/atmosphere.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-white/30 backdrop-blur-sm" />
+      </div>
+
       <DashSidebar activeTab="dashboard" />
 
-      {/* MAIN VIEW */}
-      <main className="dash-main">
-        
-        {/* Header Area */}
-        <header className="dash-header">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div className="dash-header__title">
-              <span className="text-mono" style={{ color: 'var(--neon)', fontSize: '12px' }}>LIVE NODE TERMINAL</span>
-              <h1 className="text-heading" style={{ fontSize: '2.5rem', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                KAVACHSATHA <span style={{ color: 'var(--white-muted)' }}>/</span> MAH-ZONE-04
-              </h1>
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-8 py-10">
+          
+          {/* Top Header */}
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400">Policy Identification</span>
+              <h1 className="font-mono text-4xl md:text-5xl font-bold tracking-[0.1em] text-[#111]">{zoneId}</h1>
+              <div className="flex items-center gap-3 mt-3">
+                <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] rounded-md">ARMED</span>
+                <span className="bg-blue-500/10 border border-blue-500/30 text-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] rounded-md flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> MONITORING
+                </span>
+              </div>
             </div>
             <button
               onClick={() => downloadPolicyCertificate(policy)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px', 
-                background: 'rgba(57, 255, 20, 0.1)', border: '1px solid var(--neon)', color: 'var(--neon)', 
-                padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: '12px', width: 'fit-content'
-              }}
+              className="bg-[#0F172A] hover:bg-black text-white px-6 py-3.5 rounded-xl flex items-center gap-2.5 text-sm font-semibold transition-all shadow-[0_10px_20px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 self-start md:self-auto shrink-0"
             >
-              <Download size={14} /> <span>DL_DIGITAL_PROOF</span>
+              <Download size={16} /> Download Certificate
             </button>
           </div>
+
+          {/* Active Radar - Live Monitoring Grid */}
+          <div className="mb-8">
+            <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400 mb-4 block">Active Radar</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-blue-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                    <CloudRain className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rainfall Level</p>
+                    <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">14.2<span className="text-sm text-gray-400 ml-1">mm</span></p>
+                  </div>
+               </motion.div>
+               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0.1 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-orange-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.3)]">
+                    <Thermometer className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Heat Index</p>
+                    <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">38.5<span className="text-sm text-gray-400 ml-1">°C</span></p>
+                  </div>
+               </motion.div>
+               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0.2 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-teal-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(20,184,166,0.3)]">
+                    <Zap className="w-5 h-5 text-teal-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AQI Core</p>
+                    <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">142<span className="text-sm text-gray-400 ml-1">idx</span></p>
+                  </div>
+               </motion.div>
+            </div>
+          </div>
+
+          {/* Main Grid Data (Premium & Triggers) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
+            {/* LEFT: Premium History */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+              className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl shadow-sm overflow-hidden"
+            >
+              <div className="px-6 py-5 border-b border-white/20">
+                <h2 className="text-sm font-bold text-[#1A1A1A] uppercase tracking-widest">Ledger History</h2>
+              </div>
+              <table className="w-full text-sm table-fixed">
+                <thead>
+                  <tr className="bg-white/10 backdrop-blur-sm">
+                    {['Transaction ID', 'Date', 'Amount', 'Status'].map(h => (
+                      <th key={h} className="text-left px-5 py-4 text-[10px] uppercase font-bold text-[#0F172A] tracking-wider border-b border-white/20">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-5 py-8 text-center text-slate-500 text-sm">No payment records yet.</td>
+                    </tr>
+                  ) : payments.slice(0, 10).map((p, i) => (
+                    <tr key={p.id || i} className="border-b border-white/10 hover:bg-white/30 transition-colors">
+                      <td className="px-5 py-4 font-mono text-xs text-[#1A3C5E] font-medium">
+                        {(p.paymentId || p.id || '').substring(0, 8).toUpperCase()}
+                      </td>
+                      <td className="px-5 py-4 text-xs font-semibold text-[#1A1A1A]">
+                        {new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="px-5 py-4 font-mono text-sm font-semibold text-[#111]">
+                        ₹{(p.amount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusBadge status={p.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </motion.div>
+
+            {/* RIGHT COLUMN */}
+            <div className="flex flex-col gap-6">
+              {/* Parametric Trigger Log */}
+              <motion.div
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 }}
+                className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl p-6 shadow-sm"
+              >
+                <h3 className="text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400 mb-5">Parametric Log</h3>
+                {triggers.length === 0 ? (
+                  <p className="text-gray-400 text-sm">No trigger events recorded.</p>
+                ) : (
+                  <div className="flex flex-col gap-5">
+                    {triggers.slice(0, 3).map((t, i) => (
+                      <div key={t.id || i} className="flex gap-3 items-start border-b border-white/10 last:border-0 pb-4 last:pb-0">
+                        <div className="shrink-0 flex flex-col items-center">
+                          <p className="text-xs text-slate-600 font-mono">
+                            {new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                          </p>
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-white/40 flex items-center justify-center shrink-0 border border-white/30">
+                          {i % 2 === 0 ? <CloudRain size={12} className="text-[#111]" /> : <Thermometer size={12} className="text-[#111]" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs text-[#1A1A1A] font-bold">{t.event || 'Weather Event'}</p>
+                          {t.reason && <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">{t.reason}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </div>
           
-          <div className="dash-ticker glass">
-            <div className="ticker-track">
-              {/* Ticker items */}
-              <div className="ticker-item text-mono">
-                <span style={{ color: 'var(--white-dim)' }}>LOC: MUMBAI, MH</span>
-                <span style={{ color: 'var(--neon)' }}>[HEAVY RAIN WARNING]</span>
-                <span>DENSITY_PROXY: 0.89</span>
-              </div>
-              <div className="ticker-divider" />
-              <div className="ticker-item text-mono">
-                <span style={{ color: 'var(--white-dim)' }}>LOC: DELHI, NCR</span>
-                <span style={{ color: '#FFB000' }}>[AQI HAZARD]</span>
-                <span>DENSITY_PROXY: 0.72</span>
-              </div>
-              <div className="ticker-divider" />
-              <div className="ticker-item text-mono">
-                <span style={{ color: 'var(--white-dim)' }}>LOC: BENGALURU, KA</span>
-                <span style={{ color: 'var(--neon)' }}>[CLEAR]</span>
-                <span>DENSITY_PROXY: 0.65</span>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Center Stage Layout */}
-        <div className="dash-stage">
-
-          {/* BACKGROUND CONNECTIONS (Visual Polish) */}
-          <div className="dash-connections">
-            <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-              <path d="M 400 50 C 600 50, 600 350, 800 350" stroke="var(--white-ghost)" strokeWidth="1" fill="none" strokeDasharray="4 4" />
-              <path d="M 400 350 C 600 350, 600 50, 800 50" stroke="var(--neon)" strokeWidth="1" fill="none" opacity="0.3" />
-              <circle cx="400" cy="50" r="4" fill="var(--white-muted)" />
-              <circle cx="800" cy="350" r="4" fill="var(--neon)" />
-            </svg>
-          </div>
-
-          <div className="dash-stage__grid">
-            
-            {/* Left Col: Billing History Table */}
-            <div className="dash-panel glass-strong">
-              <div className="panel-header">
-                <span className="text-label" style={{ color: 'var(--white)' }}>Premium History</span>
-                <span className="text-mono" style={{ color: 'var(--neon)' }}>LIVE_SYNC</span>
-              </div>
-              
-              <div className="billing-table">
-                <div className="billing-row header-row text-mono">
-                  <span>WEEK</span>
-                  <span>STATUS</span>
-                  <span style={{ textAlign: 'right' }}>DEDUCTION</span>
-                </div>
-                
-                <div className="billing-row data-row glass">
-                  <span className="text-mono" style={{ color: 'var(--white-dim)' }}>Wk 32 (Aug 01)</span>
-                  <span className="status-badge success">PAID</span>
-                  <span className="text-serif" style={{ textAlign: 'right', fontSize: '1.2rem' }}>₹40</span>
-                </div>
-                <div className="billing-row data-row glass">
-                  <span className="text-mono" style={{ color: 'var(--white-dim)' }}>Wk 33 (Aug 08)</span>
-                  <span className="status-badge success">PAID</span>
-                  <span className="text-serif" style={{ textAlign: 'right', fontSize: '1.2rem' }}>₹40</span>
-                </div>
-                <div className="billing-row data-row glass active-row">
-                  <span className="text-mono" style={{ color: 'var(--neon)' }}>Wk 34 (Aug 15)</span>
-                  <span className="status-badge pending">DYNAMIC_SURGE</span>
-                  <span className="text-serif" style={{ textAlign: 'right', fontSize: '1.2rem', color: 'var(--neon)' }}>₹60</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Col: Claim History Log */}
-            <div className="dash-panel glass-strong">
-              <div className="panel-header">
-                <span className="text-label" style={{ color: 'var(--white)' }}>Parametric Trigger Log</span>
-                <span className="status-dot-pulse" />
-              </div>
-              
-              <div className="claim-log">
-                
-                <div className="log-entry">
-                  <div className="log-entry__icon" style={{ borderColor: 'var(--white-muted)', color: 'var(--white-muted)' }}>
-                    <ShieldAlert size={14} />
-                  </div>
-                  <div className="log-entry__content">
-                    <span className="text-mono" style={{ color: 'var(--white-muted)', fontSize: '10px' }}>AUG 02 / 14:00 IST</span>
-                    <p className="text-mono" style={{ fontSize: '11px', lineHeight: 1.4 }}>
-                      <span style={{ color: 'var(--white-dim)' }}>TRIGGER:</span> AQI &gt; 300 | <span style={{ color: 'var(--white-dim)' }}>LOC:</span> DELHI, NCR<br/>
-                      <span style={{ color: 'var(--white-dim)' }}>STATUS:</span> THRESHOLD_WARNING
-                    </p>
-                  </div>
-                </div>
-
-                <div className="log-line-connector" />
-
-                <motion.div 
-                  className="log-entry glass payout-active"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 }}
-                >
-                  <div className="log-entry__icon" style={{ borderColor: 'var(--neon)', color: 'var(--neon)', background: 'rgba(118, 185, 0, 0.1)' }}>
-                    <CloudRain size={14} />
-                  </div>
-                  <div className="log-entry__content">
-                    <span className="text-mono" style={{ color: 'var(--neon)', fontSize: '10px' }}>AUG 15 / 18:45 IST</span>
-                    <p className="text-mono" style={{ fontSize: '11px', lineHeight: 1.4, color: 'var(--white)' }}>
-                      <span style={{ color: 'var(--neon)' }}>TRIGGER:</span> RAIN &gt; 60mm | <span style={{ color: 'var(--neon)' }}>LOC:</span> MUMBAI<br/>
-                      <span style={{ color: 'var(--neon)' }}>STATUS:</span> PAYOUT DISPATCHED <span className="text-serif" style={{ fontSize: '1.2rem', marginLeft: '4px' }}>₹250</span>
-                    </p>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-
-          </div>
         </div>
-
       </main>
-
-      {/* Overlays */}
-      <div className="decision-engine-panel glass">
-        <div className="panel-header" style={{ marginBottom: '24px' }}>
-          <span className="text-label" style={{ color: 'var(--neon)' }}>AI Decision Engine</span>
-        </div>
-        
-        <div className="engine-grid">
-          {/* Gauge */}
-          <div className="gauge-container">
-            <svg width="120" height="120" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="var(--white-ghost)" strokeWidth="6" />
-              <motion.circle 
-                cx="60" cy="60" r="50" 
-                fill="none" 
-                stroke="var(--neon)" 
-                strokeWidth="6"
-                strokeDasharray="314"
-                strokeDashoffset="314"
-                animate={{ strokeDashoffset: 314 * (1 - 0.82) }}
-                transition={{ duration: 1.5, ease: "easeOut", delay: 1 }}
-                strokeLinecap="round"
-                transform="rotate(-90 60 60)"
-              />
-            </svg>
-            <div className="gauge-value">
-              <span className="text-serif" style={{ fontSize: '2rem', lineHeight: 1 }}>82<span style={{ fontSize: '1rem' }}>%</span></span>
-              <span className="text-mono" style={{ fontSize: '10px', color: 'var(--neon)', marginTop: '4px' }}>HIGH PAYOUT</span>
-            </div>
-          </div>
-
-          {/* Formula */}
-          <div className="formula-box">
-             <span className="text-mono" style={{ color: 'var(--white-muted)', fontSize: '10px', display: 'block', marginBottom: '8px' }}>REAL-TIME CALCULATION</span>
-             <p className="text-mono" style={{ fontSize: '12px', lineHeight: 1.6 }}>
-                Risk Score = <br/>
-                (Env <span style={{ color: 'var(--neon)' }}>× 0.4</span>) + <br/>
-                (Platform <span style={{ color: 'var(--neon)' }}>× 0.4</span>) + <br/>
-                (Mobility <span style={{ color: 'var(--neon)' }}>× 0.2</span>)
-             </p>
-          </div>
-        </div>
-      </div>
-
     </div>
   );
 }

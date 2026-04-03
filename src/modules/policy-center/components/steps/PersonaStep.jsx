@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, CreditCard, Fingerprint } from 'lucide-react';
+import { User, CreditCard, Fingerprint, Check } from 'lucide-react';
 import { PLATFORM_LIST, PLATFORMS } from '../../constants/platforms';
 import { formatAadhaarInput, stripAadhaar, maskAadhaar } from '../../utils/aadhaarMask';
 
@@ -33,7 +33,6 @@ export default function PersonaStep({ form }) {
 
   const handlePlatformSelect = (platformId) => {
     setValue('platform', platformId, { shouldValidate: true });
-    // Auto-set worker ID prefix
     const prefix = PLATFORMS[platformId].idPrefix;
     const currentId = watch('workerId') || '';
     if (!currentId.startsWith(prefix)) {
@@ -42,86 +41,100 @@ export default function PersonaStep({ form }) {
   };
 
   const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 16 },
     visible: (i) => ({
       opacity: 1, y: 0,
-      transition: { duration: 0.6, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] },
+      transition: { duration: 0.5, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] },
     }),
   };
 
+  const inputBase = "w-full bg-transparent border-0 border-b-2 border-gray-300 rounded-none px-0 py-3 text-[#1A1A1A] text-[15px] font-semibold focus:ring-0 focus:border-[#1A3C5E] transition-colors outline-none font-['Inter',sans-serif]";
+  const inputError = "border-red-400 focus:border-red-500 focus:ring-0";
+
   return (
-    <div className="step-persona">
+    <div className="space-y-6">
       {/* Full Name */}
-      <motion.div className="reg-field" custom={0} initial="hidden" animate="visible" variants={fadeIn}>
-        <label className="reg-field__label text-mono">
-          <User size={14} />
-          <span>fullName</span>
-          <span className="reg-field__required">*</span>
+      <motion.div custom={0} initial="hidden" animate="visible" variants={fadeIn} className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1A1A1A] flex items-center gap-2">
+          <User className="w-4 h-4 text-[#0F7B6C]" />
+          Full Name <span className="text-[#E85D04]">*</span>
         </label>
         <input
           type="text"
-          className={`reg-field__input ${errors.fullName ? 'has-error' : ''}`}
+          className={`${inputBase} ${errors.fullName ? inputError : ''}`}
           placeholder="Enter your full name"
           {...register('fullName')}
           autoComplete="name"
         />
-        {errors.fullName && <span className="reg-field__error text-mono">{errors.fullName.message}</span>}
+        {errors.fullName && (
+          <span className="text-xs text-red-500">{errors.fullName.message}</span>
+        )}
       </motion.div>
 
       {/* Platform Selection */}
-      <motion.div className="reg-field" custom={1} initial="hidden" animate="visible" variants={fadeIn}>
-        <label className="reg-field__label text-mono">
-          <CreditCard size={14} />
-          <span>platform</span>
-          <span className="reg-field__required">*</span>
+      <motion.div custom={1} initial="hidden" animate="visible" variants={fadeIn} className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1A1A1A] flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-[#0F7B6C]" />
+          Platform <span className="text-[#E85D04]">*</span>
         </label>
-        <div className="platform-selector">
-          {PLATFORM_LIST.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className={`platform-pill ${selectedPlatform === p.id ? 'active' : ''}`}
-              onClick={() => handlePlatformSelect(p.id)}
-              style={{
-                '--pill-color': p.color,
-                '--pill-glow': `${p.color}33`,
-              }}
-            >
-              <span className="platform-pill__icon">{p.icon}</span>
-              <span className="platform-pill__name">{p.name}</span>
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-3">
+          {PLATFORM_LIST.map((p) => {
+            const isSelected = selectedPlatform === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => handlePlatformSelect(p.id)}
+                className={`relative backdrop-blur-md border-2 rounded-2xl p-5 text-center cursor-pointer transition-all duration-200
+                  ${isSelected
+                    ? 'border-[#1A3C5E] bg-white/50 shadow-sm'
+                    : 'border-white/40 bg-white/20 hover:border-[#1A3C5E] hover:bg-white/30'
+                  }
+                `}
+              >
+                {isSelected && (
+                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#1A3C5E] flex items-center justify-center shadow-md">
+                    <Check size={12} className="text-white" strokeWidth={3} />
+                  </div>
+                )}
+                <span className="text-[2.5rem] block">{p.icon}</span>
+                <span className="font-semibold text-[#1A1A1A] text-sm mt-2 block">{p.name}</span>
+              </button>
+            );
+          })}
         </div>
-        {errors.platform && <span className="reg-field__error text-mono">{errors.platform.message}</span>}
+        {errors.platform && (
+          <span className="text-xs text-red-500">{errors.platform.message}</span>
+        )}
       </motion.div>
 
       {/* Worker ID */}
-      <motion.div className="reg-field" custom={2} initial="hidden" animate="visible" variants={fadeIn}>
-        <label className="reg-field__label text-mono">
-          <CreditCard size={14} />
-          <span>workerId</span>
-          <span className="reg-field__required">*</span>
+      <motion.div custom={2} initial="hidden" animate="visible" variants={fadeIn} className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1A1A1A] flex items-center gap-2">
+          <CreditCard className="w-4 h-4 text-[#0F7B6C]" />
+          Worker ID <span className="text-[#E85D04]">*</span>
         </label>
         <input
           type="text"
-          className={`reg-field__input ${errors.workerId ? 'has-error' : ''}`}
+          className={`${inputBase} ${errors.workerId ? inputError : ''}`}
           placeholder={selectedPlatform ? PLATFORMS[selectedPlatform]?.idPlaceholder : 'Select platform first'}
           {...register('workerId')}
         />
-        {errors.workerId && <span className="reg-field__error text-mono">{errors.workerId.message}</span>}
+        {errors.workerId && (
+          <span className="text-xs text-red-500">{errors.workerId.message}</span>
+        )}
       </motion.div>
 
       {/* Aadhaar */}
-      <motion.div className="reg-field" custom={3} initial="hidden" animate="visible" variants={fadeIn}>
-        <label className="reg-field__label text-mono">
-          <Fingerprint size={14} />
-          <span>aadhaarNumber</span>
-          <span className="reg-field__required">*</span>
+      <motion.div custom={3} initial="hidden" animate="visible" variants={fadeIn} className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium text-[#1A1A1A] flex items-center gap-2">
+          <Fingerprint className="w-4 h-4 text-[#0F7B6C]" />
+          Aadhaar Number <span className="text-[#E85D04]">*</span>
         </label>
-        <div className="aadhaar-input-wrap">
+        <div className="relative">
           <input
             type="text"
-            className={`reg-field__input aadhaar-input ${errors.aadhaar ? 'has-error' : ''}`}
+            className={`${inputBase} ${errors.aadhaar ? inputError : ''} ${isAadhaarComplete ? 'border-[#0F7B6C] focus:border-[#0F7B6C] focus:ring-[#0F7B6C]/10' : ''}`}
             placeholder="XXXX-XXXX-XXXX"
             value={aadhaarDisplay}
             onChange={handleAadhaarChange}
@@ -131,21 +144,27 @@ export default function PersonaStep({ form }) {
           />
           {isAadhaarComplete && (
             <motion.div
-              className="aadhaar-verified"
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="7" stroke="var(--neon)" strokeWidth="1.5" />
-                <path d="M5 8L7 10L11 6" stroke="var(--neon)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className="text-mono">{aadhaarMasked}</span>
+              <div className="w-5 h-5 rounded-full bg-[#0F7B6C] flex items-center justify-center">
+                <Check size={12} className="text-white" strokeWidth={3} />
+              </div>
+              <span className="font-mono text-xs text-[#0F7B6C] font-medium hidden sm:inline">{aadhaarMasked}</span>
             </motion.div>
           )}
         </div>
-        <span className="reg-field__hint text-mono">12-digit Aadhaar · Masked after entry · Not stored locally</span>
-        {errors.aadhaar && <span className="reg-field__error text-mono">{errors.aadhaar.message}</span>}
+        {isAadhaarComplete && (
+          <span className="text-xs text-[#0F7B6C] font-medium">✓ Verified format</span>
+        )}
+        <span className="text-xs text-gray-400">
+          12-digit Aadhaar · Masked after entry · Not stored locally
+        </span>
+        {errors.aadhaar && (
+          <span className="text-xs text-red-500">{errors.aadhaar.message}</span>
+        )}
       </motion.div>
     </div>
   );

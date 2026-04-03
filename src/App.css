@@ -1,15 +1,15 @@
-/* App-level styles */
+/* App-level layout */
 .app {
   position: relative;
   min-height: 100vh;
   overflow-x: hidden;
-  background: var(--obsidian);
+  background: var(--bg-page);
 }
 
 .page-loader {
   position: fixed;
   inset: 0;
-  background: var(--obsidian);
+  background: #FAFAF8;
   z-index: 99999;
   display: flex;
   align-items: center;
@@ -17,29 +17,9 @@
 }
 
 .page-loader .loader-text {
-  font-family: var(--font-mono);
-  font-size: clamp(1rem, 2vw, 2rem);
-  color: var(--neon);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  position: relative;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  color: #1A3C5E;
+  letter-spacing: 0.1em;
+  font-weight: 500;
 }
-
-.page-loader .loader-text::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: -20px;
-  right: -20px;
-  height: 1px;
-  background: var(--neon);
-  transform-origin: left;
-  animation: scanline 2s ease-in-out infinite;
-}
-
-@keyframes scanline {
-  0% { transform: scaleX(0); opacity: 1; }
-  100% { transform: scaleX(1); opacity: 0; }
-}
-
-

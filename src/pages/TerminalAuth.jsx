@@ -1,35 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Shield, Lock, User, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import './TerminalAuth.css';
+import AuthInput from '../components/AuthInput';
 
 /**
- * TerminalAuth — "Dark Ops / System Access" Login & Registration Portal
- * Simulates a secure console login experience.
+ * KavachSathi Login — High-Trust Borderless Login
+ * All Firebase auth logic preserved from TerminalAuth.jsx.
+ * Visual redesign: Video background, AuthInput borderless lines, Deep Navy text.
  */
 export default function TerminalAuth() {
   const { login, signup } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromPath = location.state?.from || '/dashboard';
 
   const [isLogin, setIsLogin] = useState(true);
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
-  const [authStatus, setAuthStatus] = useState('idle'); // idle, processing, success, error
+  const [authStatus, setAuthStatus] = useState('idle'); // idle | processing | success | error
   const [errorMsg, setErrorMsg] = useState('');
-  const [terminalLines, setTerminalLines] = useState([]);
-
-  // Auto-focus email input on load
-  const emailInputRef = useRef(null);
-  useEffect(() => {
-    emailInputRef.current?.focus();
-  }, [isLogin]);
-
-  const addLine = (text, type = 'system') => {
-    setTerminalLines(prev => [...prev.slice(-4), { text, type, id: Date.now() + Math.random() }]);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,51 +28,27 @@ export default function TerminalAuth() {
 
     setAuthStatus('processing');
     setErrorMsg('');
-    setTerminalLines([]);
-
-    addLine('> INITIATING SECURE HANDSHAKE...', 'system');
-    
-    setTimeout(() => {
-      addLine(`> VERIFYING CREDENTIALS FOR [${email}]...`, 'process');
-    }, 600);
 
     try {
       if (isLogin) {
         await login(email, password);
-        setTimeout(() => {
-          addLine('> AUTH TOKEN VERIFIED.', 'success');
-          addLine('> ACCESS GRANTED.', 'success');
-          setAuthStatus('success');
-          
-          setTimeout(() => {
-            navigate('/dashboard'); // Route to morphing dashboard
-          }, 1500);
-        }, 1200);
-
+        setAuthStatus('success');
+        setTimeout(() => navigate(fromPath), 800);
       } else {
-        await signup(email, password);
-        setTimeout(() => {
-          addLine('> USER IDENTITY REGISTERED.', 'success');
-          addLine('> SESSION ESTABLISHED.', 'success');
-          setAuthStatus('success');
-
-          setTimeout(() => {
-            navigate('/register'); // Route new users straight to Policy Center registration
-          }, 1500);
-        }, 1200);
+        if (!fullName.trim()) throw new Error('Please enter your full name.');
+        await signup(email, password, fullName);
+        setAuthStatus('success');
+        setTimeout(() => navigate(fromPath), 800);
       }
     } catch (err) {
-      setTimeout(() => {
-        let msg = 'ACCESS DENIED: INSUFFICIENT CLEARANCE';
-        if (err.code === 'auth/user-not-found') msg = 'IDENTITY NOT FOUND';
-        if (err.code === 'auth/wrong-password') msg = 'INVALID CREDENTIALS';
-        if (err.code === 'auth/email-already-in-use') msg = 'IDENTITY CONFLICT: EMAIL IN USE';
-        if (err.code === 'auth/weak-password') msg = 'SECURITY RISK: PASSWORD TOO WEAK';
-
-        addLine(`> ${msg}`, 'error');
-        setErrorMsg(msg);
-        setAuthStatus('error');
-      }, 1200);
+      let msg = 'Authentication failed. Unauthorized.';
+      if (err.code === 'auth/user-not-found') msg = 'No clearance found for this identifier.';
+      if (err.code === 'auth/wrong-password') msg = 'Invalid access credential.';
+      if (err.code === 'auth/invalid-credential') msg = 'Invalid identifier or credential.';
+      if (err.code === 'auth/email-already-in-use') msg = 'Identifier already active in network.';
+      if (err.code === 'auth/weak-password') msg = 'Credential does not meet protocol entropy.';
+      setErrorMsg(msg);
+      setAuthStatus('error');
     }
   };
 
@@ -89,139 +56,125 @@ export default function TerminalAuth() {
     setIsLogin(!isLogin);
     setErrorMsg('');
     setAuthStatus('idle');
-    setTerminalLines([]);
   };
 
+  const isDisabled = authStatus === 'processing' || authStatus === 'success';
+
   return (
-    <div className="terminal-auth-container">
-      <motion.div 
-        className="auth-box glass"
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+    <div className="relative min-h-screen flex flex-col items-center justify-center font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
+      {/* The Environment */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover opacity-80"
       >
-        {/* Header / Brand */}
-        <div className="auth-header">
-          <motion.div 
-            className="auth-header__icon"
-            animate={{ 
-              boxShadow: authStatus === 'processing' 
-                ? '0 0 20px rgba(57, 255, 20, 0.5)' 
-                : '0 0 0px rgba(57, 255, 20, 0)' 
-            }}
-            transition={{ duration: 0.5, yoyo: Infinity }}
-          >
-            {authStatus === 'success' ? <Shield size={24} /> : <Terminal size={24} />}
-          </motion.div>
-          <div className="auth-header__titles">
-            <h1 className="auth-header__title">KAVACH_SATHI</h1>
-            <span className="auth-header__subtitle text-mono">
-              SYSTEM_AUTH // v4.0.1
-            </span>
-          </div>
-        </div>
+        <source src="/assets/videos/atmosphere.mp4" type="video/mp4" />
+      </video>
+      <div className="absolute inset-0 bg-white/60 backdrop-blur-md" />
 
-        {/* Input Form */}
-        <div className="auth-body">
-          <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-field">
-              <label className="text-mono">IDENTITY_URI [EMAIL]</label>
-              <div className="auth-input-wrapper">
-                <User size={16} className="auth-input-icon" />
-                <input
-                  ref={emailInputRef}
-                  type="email"
-                  className="auth-input text-mono"
-                  placeholder="agent@network.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={authStatus === 'processing' || authStatus === 'success'}
-                  required
-                />
-              </div>
-            </div>
+      {/* Transparent Navbar */}
+      <nav className="absolute top-0 inset-x-0 z-50 h-24 flex items-center px-10 bg-white/10 backdrop-blur-md border-b border-white/20">
+        <Link to="/" className="text-2xl font-bold tracking-tight text-[#0F172A] drop-shadow-sm hover:text-[#0F7B6C] transition-colors">
+          Kavach Sathi
+        </Link>
+      </nav>
 
-            <div className="auth-field">
-              <label className="text-mono">ACCESS_KEY [PASSWORD]</label>
-              <div className="auth-input-wrapper">
-                <Lock size={16} className="auth-input-icon" />
-                <input
-                  type="password"
-                  className="auth-input text-mono"
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={authStatus === 'processing' || authStatus === 'success'}
-                  required
-                />
-              </div>
-            </div>
+      {/* Centered Vertical Stack */}
+      <motion.div 
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 w-full max-w-[400px] px-8 flex flex-col items-start pt-10"
+      >
+        <h1 className="text-[2.5rem] leading-[1.1] font-bold tracking-tighter text-[#0F172A] mb-14 drop-shadow-sm">
+          {isLogin ? 'Welcome back' : 'Get started'}
+        </h1>
 
-            {/* Error Message */}
-            <AnimatePresence>
-              {errorMsg && (
-                <motion.div 
-                  className="auth-error text-mono"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <AlertCircle size={14} />
-                  <span>{errorMsg}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+        <form onSubmit={handleSubmit} className="w-full flex flex-col gap-10">
+          {!isLogin && (
+            <AuthInput
+              label="Full Name"
+              type="text"
+              value={fullName}
+              onChange={e => setFullName(e.target.value)}
+              disabled={isDisabled}
+              placeholder="Shashwat C."
+              hasError={authStatus === 'error'}
+            />
+          )}
 
-            {/* Submit Button */}
-            <button 
-              type="submit" 
-              className={`auth-submit-btn ${authStatus === 'processing' ? 'processing' : ''}`}
-              disabled={authStatus === 'processing' || authStatus === 'success'}
-            >
-              <span className="text-mono">
-                {authStatus === 'processing' ? 'AUTHENTICATING...' : isLogin ? 'INITIATE_LOGIN' : 'REGISTER_IDENTITY'}
-              </span>
-            </button>
-          </form>
+          <AuthInput
+            label="Email"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            disabled={isDisabled}
+            placeholder="you@example.com"
+            hasError={authStatus === 'error'}
+          />
 
-          {/* Toggle Login/Signup */}
-          <div className="auth-toggle text-mono">
-            {isLogin ? "NO IDENTITY FOUND? " : "IDENTITY VERIFIED? "}
-            <button type="button" onClick={toggleMode} disabled={authStatus === 'processing' || authStatus === 'success'}>
-              {isLogin ? 'REQUEST_ACCESS' : 'PROCEED_TO_LOGIN'}
-            </button>
-          </div>
-        </div>
+          <AuthInput
+            label="Password"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            disabled={isDisabled}
+            placeholder="••••••••"
+            hasError={authStatus === 'error'}
+          />
 
-        {/* Terminal Live Output logs */}
-        <div className="auth-terminal-log">
-          <div className="auth-terminal-log__header">
-            <span className="dot dot-red"></span>
-            <span className="dot dot-yellow"></span>
-            <span className="dot dot-green"></span>
-            <span className="text-mono auth-terminal-log__title">SECURE_CHANNEL</span>
-          </div>
-          <div className="auth-terminal-log__body text-mono">
-            {terminalLines.map((line) => (
-              <motion.div 
-                key={line.id} 
-                className={`terminal-out line-${line.type}`}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.2 }}
+          {/* Error Display */}
+          <AnimatePresence>
+            {errorMsg && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden mb-[-10px]"
               >
-                {line.text}
+                <p className="font-mono text-[11px] text-[#EF4444] tracking-tight font-bold">
+                  [ERR] {errorMsg.replace('Error: ', '')}
+                </p>
               </motion.div>
-            ))}
-            {authStatus === 'processing' && (
-              <span className="auth-cursor">_</span>
             )}
-          </div>
-        </div>
-      </motion.div>
+          </AnimatePresence>
 
-      {/* Futuristic Background overlay */}
-      <div className="auth-bg-overlay" />
+          {/* Action Execution */}
+          <div className="mt-4 flex flex-col gap-6 w-full">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              disabled={isDisabled}
+              className={`w-full py-[1.15rem] text-center text-[#FFFFFF] font-extrabold tracking-widest text-[13px] uppercase
+                rounded-none transition-all shadow-xl bg-[#0F172A]
+                ${isDisabled ? 'opacity-70 cursor-not-allowed' : 'hover:bg-black'}
+              `}
+            >
+              {authStatus === 'processing' ? 'NEGOTIATING...' : authStatus === 'success' ? 'ACCESS GRANTED' : isLogin ? 'SIGN IN' : 'CREATE ACCOUNT'}
+            </motion.button>
+            
+            <div className="flex items-center justify-between w-full">
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="text-[11px] uppercase tracking-widest text-slate-500 hover:text-[#0F172A] font-bold transition-colors"
+              >
+                {isLogin ? 'Get started' : 'Sign in'}
+              </button>
+              {isLogin && (
+                <button
+                  type="button"
+                  className="text-[11px] uppercase tracking-widest text-slate-500 hover:text-[#0F172A] font-bold transition-colors"
+                >
+                  FORGOT PASSWORD?
+                </button>
+              )}
+            </div>
+          </div>
+        </form>
+      </motion.div>
     </div>
   );
 }

@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 /**
- * TerminalLoader — "Calculating Risk..." typewriter terminal effect
- * v2.0: Shows weather data, safe zone detection, and formula calculation
+ * TerminalLoader — Restyled dark data terminal
+ * Deliberate dark inset for data readout — not decoration
  */
 export default function TerminalLoader({ 
   lines = [], 
@@ -35,32 +35,33 @@ export default function TerminalLoader({
     };
   }, [lines, onComplete]);
 
-  const getLineClass = (line) => {
-    let cls = 'terminal-line text-mono';
-    if (line.isResult) cls += ' terminal-line--result';
-    if (line.isFormula) cls += ' terminal-line--formula';
-    if (line.isSafeZone) cls += ' terminal-line--safe';
-    if (line.isDiscount) cls += ' terminal-line--discount';
-    return cls;
+  const getLineColor = (line) => {
+    if (line.isFormula) return 'text-[#38BDF8] font-semibold';
+    if (line.isResult) return 'text-[#E2E8F0]';
+    if (line.isSafeZone) return 'text-[#34D399]';
+    if (line.isDiscount) return 'text-[#34D399]';
+    return 'text-[#64748B]';
   };
 
   return (
-    <div className="terminal-loader">
-      <div className="terminal-loader__header">
-        <div className="terminal-dots">
-          <span className="dot dot--red" />
-          <span className="dot dot--yellow" />
-          <span className="dot dot--green" />
+    <div className="bg-[#0F172A] rounded-2xl overflow-hidden">
+      {/* Terminal header */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-[#1E293B]">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-[#EF4444]" />
+          <div className="w-3 h-3 rounded-full bg-[#EAB308]" />
+          <div className="w-3 h-3 rounded-full bg-[#22C55E]" />
         </div>
-        <span className="text-mono terminal-loader__title">kavach://risk-engine</span>
-        <span className="text-mono terminal-loader__live">● LIVE</span>
+        <span className="font-mono text-xs text-[#94A3B8]">kavach://risk-engine</span>
+        <span className="font-mono text-xs text-[#0F7B6C]">● LIVE</span>
       </div>
 
-      <div className="terminal-loader__body">
+      {/* Terminal body */}
+      <div className="p-5 font-mono text-sm min-h-[120px] max-h-[280px] overflow-y-auto">
         {lines.slice(0, visibleCount).map((line, i) => (
           <motion.div
             key={i}
-            className={getLineClass(line)}
+            className={`mb-1 ${getLineColor(line)} ${line.isFormula ? 'bg-[#1E293B] rounded px-2 py-0.5 inline-block' : ''}`}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3 }}
@@ -69,66 +70,63 @@ export default function TerminalLoader({
           </motion.div>
         ))}
 
-        {/* Live risk result display */}
+        {/* Live risk result */}
         {riskResult && visibleCount >= lines.length && (
           <motion.div
-            className="terminal-result"
+            className="mt-3 pt-3 border-t border-[#1E293B]"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <div className="terminal-result__divider" />
-            
-            <div className="terminal-result__row">
-              <span className="text-mono">RISK_SCORE:</span>
-              <span className="text-mono terminal-result__value">{riskResult.score.toFixed(4)}</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[#94A3B8]">Risk Score:</span>
+              <span className="text-[#E2E8F0] font-semibold">{riskResult.score.toFixed(4)}</span>
             </div>
-            <div className="terminal-result__row">
-              <span className="text-mono">RISK_GRADE:</span>
-              <span className={`text-mono terminal-result__grade grade--${riskResult.grade}`}>
-                {riskResult.grade}
-              </span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[#94A3B8]">Risk Grade:</span>
+              <span className={`font-bold ${
+                riskResult.grade === 'A' ? 'text-[#38BDF8]' : 
+                riskResult.grade === 'B' ? 'text-[#34D399]' : 'text-[#FBBF24]'
+              }`}>{riskResult.grade}</span>
             </div>
-            <div className="terminal-result__row">
-              <span className="text-mono">FORMULA:</span>
-              <span className="text-mono terminal-result__formula">{riskResult.formula}</span>
-            </div>
-
-            {/* Factor breakdown */}
-            <div className="terminal-result__divider" />
-            <div className="terminal-result__row">
-              <span className="text-mono" style={{ color: 'var(--white-muted)' }}>ENV_CONTRIBUTION:</span>
-              <span className="text-mono">(0.4 × {riskResult.factors.environmental.toFixed(2)}) = {riskResult.formulaBreakdown?.envContribution?.toFixed(4)}</span>
-            </div>
-            <div className="terminal-result__row">
-              <span className="text-mono" style={{ color: 'var(--white-muted)' }}>PLT_CONTRIBUTION:</span>
-              <span className="text-mono">(0.4 × {riskResult.factors.personal.toFixed(2)}) = {riskResult.formulaBreakdown?.perContribution?.toFixed(4)}</span>
-            </div>
-            <div className="terminal-result__row">
-              <span className="text-mono" style={{ color: 'var(--white-muted)' }}>MKT_CONTRIBUTION:</span>
-              <span className="text-mono">(0.2 × {riskResult.factors.market.toFixed(2)}) = {riskResult.formulaBreakdown?.marContribution?.toFixed(4)}</span>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[#94A3B8]">Formula:</span>
+              <span className="text-[#38BDF8] font-semibold">{riskResult.formula}</span>
             </div>
 
-            {/* Safe zone discount */}
+            <div className="mt-2 pt-2 border-t border-[#1E293B] text-xs">
+              <div className="flex justify-between text-[#64748B] mb-0.5">
+                <span>Env Contribution:</span>
+                <span className="text-[#94A3B8]">(0.4 × {riskResult.factors.environmental.toFixed(2)}) = {riskResult.formulaBreakdown?.envContribution?.toFixed(4)}</span>
+              </div>
+              <div className="flex justify-between text-[#64748B] mb-0.5">
+                <span>Platform Contribution:</span>
+                <span className="text-[#94A3B8]">(0.4 × {riskResult.factors.personal.toFixed(2)}) = {riskResult.formulaBreakdown?.perContribution?.toFixed(4)}</span>
+              </div>
+              <div className="flex justify-between text-[#64748B]">
+                <span>Market Contribution:</span>
+                <span className="text-[#94A3B8]">(0.2 × {riskResult.factors.market.toFixed(2)}) = {riskResult.formulaBreakdown?.marContribution?.toFixed(4)}</span>
+              </div>
+            </div>
+
             {riskResult.safeZone?.isSafe && (
-              <>
-                <div className="terminal-result__divider" />
-                <div className="terminal-result__row terminal-result__row--discount">
-                  <span className="text-mono">SAFE_ZONE_DISCOUNT:</span>
-                  <span className="text-mono" style={{ color: '#39FF14' }}>-₹{riskResult.safeZone.discount}/week</span>
+              <div className="mt-2 pt-2 border-t border-[#1E293B] text-xs">
+                <div className="flex justify-between text-[#34D399]">
+                  <span>Safe Zone Discount:</span>
+                  <span>-₹{riskResult.safeZone.discount}/week</span>
                 </div>
-                <div className="terminal-result__row">
-                  <span className="text-mono" style={{ color: 'var(--white-muted)' }}>ZONE:</span>
-                  <span className="text-mono" style={{ color: '#39FF14' }}>{riskResult.safeZone.zoneName}</span>
+                <div className="flex justify-between text-[#64748B]">
+                  <span>Zone:</span>
+                  <span className="text-[#34D399]">{riskResult.safeZone.zoneName}</span>
                 </div>
-              </>
+              </div>
             )}
           </motion.div>
         )}
 
         {/* Blinking cursor */}
         {visibleCount < lines.length && (
-          <span className={`terminal-cursor ${showCursor ? '' : 'terminal-cursor--hidden'}`}>▋</span>
+          <span className={`text-[#E2E8F0] transition-opacity ${showCursor ? 'opacity-100' : 'opacity-0'}`}>▋</span>
         )}
       </div>
     </div>

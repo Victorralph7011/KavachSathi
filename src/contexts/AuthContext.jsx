@@ -5,9 +5,11 @@ import {
   signOut, 
   onAuthStateChanged,
   setPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  updateProfile
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
 
 const AuthContext = createContext();
 
@@ -20,8 +22,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Sign up a new user
-  function signup(email, password) {
-    return createUserWithEmailAndPassword(auth, email, password);
+  async function signup(email, password, fullName) {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    
+    // 1. Update Firebase Auth Profile
+    await updateProfile(user, { displayName: fullName });
+    
+    // 2. Save to Firestore users collection
+    await setDoc(doc(db, 'users', user.uid), {
+      uid: user.uid,
+      fullName: fullName,
+      email: email,
+      createdAt: new Date().toISOString(),
+      role: 'operative' // optional parametric assignment
+    });
+    
+    return userCredential;
   }
 
   // Log in an existing user

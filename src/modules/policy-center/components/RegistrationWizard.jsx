@@ -2,18 +2,16 @@ import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 
 import { PersonaSchema, RiskValidationSchema, IssuanceSchema, DEFAULT_VALUES } from '../schemas/submission.schema';
 import { useSubmissionState } from '../hooks/useSubmissionState';
 import { createDraftPolicy, quotePolicyWithRisk, bindPolicy, issuePolicy } from '../services/policyService';
-import PolicyStatusBar from './PolicyStatusBar';
 import PersonaStep from './steps/PersonaStep';
 import RiskValidationStep from './steps/RiskValidationStep';
 import IssuanceStep from './steps/IssuanceStep';
-import './RegistrationWizard.css';
 
 const STEP_SCHEMAS = {
   1: PersonaSchema,
@@ -27,11 +25,44 @@ const STEP_TITLES = {
   3: { label: 'Issuance', subtitle: 'Policy Review & Binding' },
 };
 
+const LIFECYCLE_STEPS = ['Draft', 'Underwriting', 'Quoted', 'Bound', 'Issued'];
+
 const slideVariants = {
   enter: (direction) => ({ x: direction > 0 ? 80 : -80, opacity: 0 }),
   center: { x: 0, opacity: 1 },
   exit: (direction) => ({ x: direction < 0 ? 80 : -80, opacity: 0 }),
 };
+
+function StepperDot({ index, label, currentState }) {
+  const stateMap = { DRAFT: 0, UNDERWRITING: 1, QUOTED: 2, BOUND: 3, ISSUED: 4 };
+  const ci = stateMap[currentState] ?? 0;
+  const isCompleted = index < ci || (currentState === 'ISSUED' && index === ci);
+  const isActive = index === ci && currentState !== 'ISSUED';
+
+  return (
+    <div className="flex flex-col items-center gap-1.5 relative z-10">
+      <div
+        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-300
+          ${isCompleted ? 'bg-[#0F7B6C] text-white' : ''}
+          ${isActive ? 'bg-[#1A3C5E] text-white ring-2 ring-[#1A3C5E] ring-offset-2 ring-offset-[#FAFAF8]' : ''}
+          ${!isCompleted && !isActive ? 'bg-gray-200 text-gray-400' : ''}
+        `}
+      >
+        {isCompleted ? <Check size={14} strokeWidth={3} /> : index + 1}
+      </div>
+      <span className={`text-[10px] font-medium whitespace-nowrap
+        ${isActive ? 'text-[#1A3C5E]' : isCompleted ? 'text-[#0F7B6C]' : 'text-gray-400'}
+      `}>{label}</span>
+    </div>
+  );
+}
+
+function getStateBadgeClass(state) {
+  if (state === 'ISSUED') return 'bg-[#DCFCE7] text-[#059669]';
+  if (state === 'BOUND' || state === 'QUOTED') return 'bg-[#EFF6FF] text-[#1A3C5E]';
+  if (state === 'UNDERWRITING') return 'bg-[#FEF3C7] text-[#E85D04]';
+  return 'bg-gray-100 text-gray-500';
+}
 
 export default function RegistrationWizard() {
   const {
@@ -109,13 +140,11 @@ export default function RegistrationWizard() {
     const values = form.getValues();
 
     try {
-      // Update to BOUND
       if (policyId) {
         await bindPolicy(policyId, { termType: values.termType });
       }
       bindPolicyState();
       
-      // Update to ISSUED
       if (policyId) {
         await issuePolicy(policyId, {
           ...paymentData,
@@ -160,73 +189,84 @@ export default function RegistrationWizard() {
   };
 
   return (
-    <div className="reg-wizard">
-      {/* Top Navigation */}
-      <nav className="reg-wizard__nav">
-        <Link to="/" className="reg-wizard__logo" aria-label="KavachSathi Home">
-          <span className="navbar__monogram">KS</span>
-          <span className="navbar__logo-dot" />
-        </Link>
+    <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
+      {/* Background Environment */}
+      <div className="absolute inset-0 z-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="w-full h-full object-cover opacity-80"
+        >
+          <source src="/assets/videos/atmosphere.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-white/60 backdrop-blur-md" />
+      </div>
 
-        <div className="reg-wizard__step-info">
-          <span className="text-mono reg-wizard__step-num">
-            STEP {String(currentStep).padStart(2, '0')} / 03
-          </span>
-          <span className="text-label reg-wizard__step-title">
-            {STEP_TITLES[currentStep]?.label}
-          </span>
+      {/* Sidebar - Glassmorphism */}
+      <aside className="relative z-10 w-64 shrink-0 bg-white/10 backdrop-blur-lg border-r border-white/20 min-h-screen sticky top-0 overflow-y-auto hidden lg:flex flex-col">
+        {/* Brand */}
+        <div className="p-6 border-b border-[#E5E7EB]">
+          <Link to="/" className="flex items-center gap-2.5" aria-label="KavachSathi Home">
+            <div className="w-8 h-8 rounded-lg bg-[#1A3C5E] flex items-center justify-center shrink-0">
+              <span className="text-white font-black text-xs italic tracking-tighter">KS</span>
+            </div>
+            <span className="text-sm font-semibold text-[#1A1A1A]">KavachSathi</span>
+          </Link>
         </div>
 
-        <div className="reg-wizard__nav-right">
-          <span className="text-mono reg-wizard__state-badge">{policyState}</span>
-          {policyId && (
-            <span className="text-mono" style={{ fontSize: '0.55rem', color: 'var(--white-muted)' }}>
-              {policyId}
-            </span>
-          )}
-        </div>
-      </nav>
-
-      {/* Status Bar */}
-      <PolicyStatusBar currentState={policyState} />
-
-      {/* Main Content */}
-      <div className="reg-wizard__body">
-        {/* Sidebar */}
-        <aside className="reg-wizard__sidebar">
-          <div className="sidebar-section">
-            <span className="text-label sidebar-section__title">Submission Flow</span>
-            {[1, 2, 3].map((step) => (
-              <div key={step}
-                className={`sidebar-step ${step === currentStep ? 'active' : ''} ${step < currentStep ? 'completed' : ''}`}
-              >
-                <div className="sidebar-step__indicator">
-                  {step < currentStep ? (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                      <path d="M2 6L5 9L10 3" stroke="var(--neon)" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <span className="text-mono">{String(step).padStart(2, '0')}</span>
-                  )}
-                </div>
-                <div className="sidebar-step__text">
-                  <span className="sidebar-step__label">{STEP_TITLES[step].label}</span>
-                  <span className="sidebar-step__desc text-mono">{STEP_TITLES[step].subtitle}</span>
-                </div>
-              </div>
-            ))}
+        <div className="px-6 py-8 flex flex-col flex-1">
+          {/* Submission Flow steps */}
+          <div className="mb-8">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4 block">Submission Flow</span>
+            <div className="flex flex-col gap-1">
+              {[1, 2, 3].map((step) => {
+                const isActive = step === currentStep;
+                const isCompleted = step < currentStep;
+                return (
+                  <div
+                    key={step}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors
+                      ${isActive ? 'bg-[#EEF2FF]' : ''}
+                    `}
+                  >
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0
+                      ${isCompleted ? 'bg-[#0F7B6C] text-white' : ''}
+                      ${isActive ? 'bg-[#1A3C5E] text-white' : ''}
+                      ${!isCompleted && !isActive ? 'bg-white/40 text-slate-500' : ''}
+                    `}>
+                      {isCompleted ? <Check size={14} strokeWidth={3} /> : step}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className={`text-sm leading-tight ${isActive ? 'text-[#1A3C5E] font-semibold' : isCompleted ? 'text-[#0F7B6C] font-medium' : 'text-gray-500'}`}>
+                        {STEP_TITLES[step].label}
+                      </span>
+                      <span className="text-[10px] text-gray-400 leading-tight mt-0.5">
+                        {STEP_TITLES[step].subtitle}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Transaction log */}
-          <div className="sidebar-section sidebar-log">
-            <span className="text-label sidebar-section__title">State History</span>
-            <div className="log-entries">
+          {/* State History */}
+          <div className="mb-6 flex-1 overflow-y-auto">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 block">State History</span>
+            <div className="flex flex-col gap-2">
               {history.slice(-6).reverse().map((entry, i) => (
-                <div key={i} className="log-entry-mini text-mono">
-                  <span className="log-entry-mini__time">
+                <div key={i} className="flex items-center gap-2.5">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    i === 0 ? 'bg-[#1A3C5E] animate-pulse' : 'bg-[#0F7B6C]'
+                  }`} />
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wider ${getStateBadgeClass(entry.state)}`}>
+                    {entry.state}
+                  </span>
+                  <span className="font-mono text-[10px] text-gray-400">
                     {new Date(entry.timestamp).toLocaleTimeString('en-IN', { hour12: false })}
                   </span>
-                  <span className="log-entry-mini__state">{entry.state}</span>
                 </div>
               ))}
             </div>
@@ -234,33 +274,83 @@ export default function RegistrationWizard() {
 
           {/* Policy ID */}
           {policyId && (
-            <div className="sidebar-section">
-              <span className="text-label sidebar-section__title">Policy ID</span>
-              <span className="text-mono" style={{ color: 'var(--neon)', fontSize: '0.7rem', wordBreak: 'break-all' }}>
+            <div className="border-t border-[#E5E7EB] pt-4 mt-auto">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest block mb-1">Policy ID</span>
+              <span className="font-['JetBrains_Mono',monospace] text-sm font-semibold text-[#1A3C5E] break-all">
                 {policyId}
               </span>
             </div>
           )}
-        </aside>
+        </div>
+      </aside>
 
-        {/* Steps Panel */}
-        <main className="reg-wizard__main">
-          <div className="reg-wizard__panel glass">
-            <div className="reg-wizard__panel-header">
-              <div>
-                <span className="text-mono" style={{ color: 'var(--white-muted)', fontSize: '0.7rem' }}>
-                  {STEP_TITLES[currentStep]?.subtitle}
-                </span>
-                <h1 className="reg-wizard__panel-title text-heading">
-                  {STEP_TITLES[currentStep]?.label}
-                </h1>
+      {/* Main - takes remaining space, scrolls independently */}
+      <main className="relative z-10 flex-1 min-w-0 overflow-y-auto">
+
+        {/* Top Bar - transparent frosted stepper + status */}
+        <div className="sticky top-0 z-20 bg-white/10 backdrop-blur-md border-b border-white/20 px-8 py-5 pb-8 flex items-center justify-between">
+          <div className="w-10"></div> {/* spacer for right alignment */}
+          
+          {/* Top Stepper */}
+          <div className="hidden lg:flex items-center w-full max-w-lg mx-auto">
+            {LIFECYCLE_STEPS.map((label, i) => {
+              const stateMap = { DRAFT: 0, UNDERWRITING: 1, QUOTED: 2, BOUND: 3, ISSUED: 4 };
+              const ci = stateMap[policyState] ?? 0;
+              const isCompleted = i < ci || (policyState === 'ISSUED' && i === ci);
+              const isActive = i === ci && policyState !== 'ISSUED';
+              
+              return (
+                <div key={label} className="flex items-center flex-1 last:flex-none">
+                  <div className="flex flex-col items-center relative z-10 shrink-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold z-10 transition-all duration-300
+                      ${isCompleted ? 'bg-[#0F7B6C] text-white' :
+                        isActive ? 'bg-[#1A3C5E] text-white ring-2 ring-[#1A3C5E] ring-offset-2' :
+                        'bg-white/40 text-slate-500'}`}>
+                      {isCompleted ? '✓' : i+1}
+                    </div>
+                    <span className={`absolute top-10 text-[10px] sm:text-xs font-medium whitespace-nowrap
+                      ${isActive ? 'text-[#1A3C5E]' : isCompleted ? 'text-[#0F7B6C]' : 'text-gray-400'}
+                    `}>{label}</span>
+                  </div>
+                  {i < LIFECYCLE_STEPS.length - 1 && (
+                    <div className={`flex-1 h-0.5 mx-2 ${i < ci ? 'bg-[#0F7B6C]' : 'bg-[#E5E7EB]'}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`rounded-full px-3 py-1 text-xs font-semibold ${getStateBadgeClass(policyState)}`}>
+              {policyState}
+            </span>
+          </div>
+        </div>
+
+        {/* Form Area - centered borderless logic */}
+        <div className="flex items-start justify-center p-8 min-h-[calc(100vh-73px)]">
+          <div className="w-full max-w-2xl py-8">
+            {/* Panel Header */}
+            <div className="mb-8 border-b border-[#E5E7EB] pb-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-xs text-gray-400 uppercase tracking-widest font-semibold">
+                    {STEP_TITLES[currentStep]?.subtitle}
+                  </span>
+                  <h1 className="text-3xl font-bold text-[#1A1A1A] mt-1 font-['Instrument_Serif',serif] italic">
+                    {STEP_TITLES[currentStep]?.label}
+                  </h1>
+                </div>
+                {!isComplete && currentStep < 3 && (
+                  <span className="bg-[#F0EDE8] text-[#1A3C5E] rounded-full px-3 py-1 text-xs font-semibold font-['Inter'] tracking-tight">
+                    {currentStep}/3 Complete
+                  </span>
+                )}
               </div>
-              {!isComplete && currentStep < 3 && (
-                <span className="text-mono reg-wizard__panel-badge">{currentStep}/3 COMPLETE</span>
-              )}
             </div>
 
-            <div className="reg-wizard__content">
+            {/* Step Content */}
+            <div className="py-2">
               <AnimatePresence mode="wait" custom={direction}>
                 <motion.div
                   key={currentStep}
@@ -280,28 +370,38 @@ export default function RegistrationWizard() {
               </AnimatePresence>
             </div>
 
+            {/* Actions */}
             {!isComplete && currentStep < 3 && (
-              <div className="reg-wizard__actions">
-                {currentStep > 1 && (
-                  <button type="button" className="reg-btn reg-btn--back text-mono" onClick={prevStep}>
+              <div className="pt-10 mt-10 flex items-center justify-between">
+                {currentStep > 1 ? (
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    className="border border-white/20 text-[#1A3C5E] hover:border-[#1A3C5E] backdrop-blur-md bg-white/30 px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2"
+                  >
                     <ArrowLeft size={16} />
-                    <span>Back</span>
+                    Back
                   </button>
-                )}
-                <div style={{ flex: 1 }} />
-                <button type="button"
-                  className={`reg-btn reg-btn--next text-label ${canProceed() ? '' : 'disabled'}`}
+                ) : <div />}
+                <button
+                  type="button"
+                  className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2
+                    ${canProceed()
+                      ? 'bg-[#E85D04] hover:bg-[#D14F00] text-white'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }
+                  `}
                   onClick={handleNext}
                   disabled={!canProceed()}
                 >
-                  <span>Continue</span>
+                  Continue
                   <ArrowRight size={16} />
                 </button>
               </div>
             )}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Info, HelpCircle, BarChart3 } from 'lucide-react';
 import './Navbar.css';
 
 export default function Navbar() {
@@ -40,10 +40,12 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { label: 'Policy', href: '#pillars' },
-    { label: 'Billing', href: '#pillars' },
-    { label: 'Claim', href: '#pillars' },
-    { label: 'Mission Control', href: '#mission-control' },
+    { label: 'How it works', to: '/how-it-works', icon: HelpCircle },
+    { label: 'Policy', to: '/policy' },
+    { label: 'Billing', to: '/billing' },
+    { label: 'Claim', to: '/claims' },
+    { label: 'Analytics', to: '/analytics', icon: BarChart3 },
+    { label: 'About', to: '/about', icon: Info },
   ];
 
   return (
@@ -62,16 +64,21 @@ export default function Navbar() {
 
         {/* Nav Links */}
         <div className="navbar__links">
-          {navLinks.map((link, i) => (
-            <a
+          {navLinks.map((link, i) => {
+            const Icon = link.icon;
+            return (
+            <Link
               key={link.label}
-              href={link.href}
-              className="navbar__link"
+              to={link.to}
+              className="navbar__link group"
             >
               <span className="navbar__link-index text-mono">{String(i + 1).padStart(2, '0')}</span>
+              {Icon && (
+                <Icon className="w-5 h-5 text-white transition-all duration-300 group-hover:text-[#FF6B00] group-hover:drop-shadow-[0_0_8px_rgba(255,107,0,0.5)]" />
+              )}
               <span className="navbar__link-label">{link.label}</span>
-            </a>
-          ))}
+            </Link>
+          )})}
         </div>
 
         {/* CTA or Profile Icon */}

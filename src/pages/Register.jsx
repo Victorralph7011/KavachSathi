@@ -9,18 +9,14 @@ import { useUserPolicy } from '../hooks/useUserPolicy';
 export default function Register() {
   const { activePolicy, isLoading } = useUserPolicy();
 
-  // If we are still checking their policy status, show a loader
   if (isLoading) {
     return (
-      <div className="page-loader">
-        <span className="loader-text text-mono">VERIFYING_CREDENTIALS</span>
+      <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center">
+        <span className="text-sm font-medium text-[#1A3C5E]">Verifying credentials...</span>
       </div>
     );
   }
 
-  // State Permanent Lock: One-Time Registration Guard
-  // If the user already has an active policy, lock them out of the buying flow
-  // and funnel them into the Command Center's Policy Vault
   if (activePolicy) {
     return <Navigate to="/policy" replace />;
   }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Radar, Cloud, Thermometer, Wind } from 'lucide-react';
+import { MapPin, Cloud, Thermometer, Wind } from 'lucide-react';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { calculateRiskScore, generateTerminalLines, getWeatherData } from '../../utils/riskEngine';
 import { PLATFORMS } from '../../constants/platforms';
@@ -28,11 +28,9 @@ export default function RiskValidationStep({ form }) {
       setValue('longitude', result.longitude);
       setValue('baseState', result.state);
       
-      // Get weather data for display
       const weather = getWeatherData(result.state);
       setWeatherData(weather);
       
-      // Generate dynamic terminal lines
       const platformName = selectedPlatform ? PLATFORMS[selectedPlatform]?.name : 'Unknown';
       const lines = generateTerminalLines(result.state, platformName, {
         latitude: result.latitude,
@@ -44,7 +42,6 @@ export default function RiskValidationStep({ form }) {
     }
   }, [requestLocation, setValue, selectedPlatform]);
 
-  // Run risk engine after terminal animation
   useEffect(() => {
     if (phase !== 'calculating') return;
 
@@ -78,157 +75,167 @@ export default function RiskValidationStep({ form }) {
     setPhase('complete');
   };
 
+  const gradeStyles = {
+    A: 'bg-[#EFF6FF] text-[#1A3C5E]',
+    B: 'bg-[#DCFCE7] text-[#059669]',
+    C: 'bg-[#FEF3C7] text-[#E85D04]',
+  };
+
+  const barColors = {
+    environmental: 'bg-[#1A3C5E]',
+    personal: 'bg-[#E85D04]',
+    market: 'bg-[#0F7B6C]',
+  };
+
   return (
-    <div className="step-risk">
-      {/* Phase: Idle */}
+    <div className="space-y-6">
+      {/* Phase: Idle — GPS Acquisition */}
       {phase === 'idle' && (
         <motion.div
-          className="risk-idle"
+          className="text-center py-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="risk-idle__radar">
-            <motion.div className="radar-ring radar-ring--1"
-              animate={{ scale: [1, 2.5], opacity: [0.4, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-            />
-            <motion.div className="radar-ring radar-ring--2"
-              animate={{ scale: [1, 2.5], opacity: [0.4, 0] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeOut', delay: 0.7 }}
-            />
-            <div className="radar-center"><Radar size={28} /></div>
+          {/* GPS Pulse Animation */}
+          <div className="w-56 h-56 mx-auto relative flex items-center justify-center bg-[#F0F9FF] rounded-full mb-8">
+            <div className="absolute w-48 h-48 rounded-full border-2 border-[#0F7B6C]/10 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.7s' }} />
+            <div className="absolute w-36 h-36 rounded-full border-2 border-[#0F7B6C]/15 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.3s' }} />
+            <div className="absolute w-24 h-24 rounded-full border-2 border-[#1A3C5E]/20 animate-ping" style={{ animationDuration: '2.5s' }} />
+            <MapPin size={48} className="text-[#1A3C5E] relative z-10" />
           </div>
 
-          <h3 className="risk-idle__title">Location Acquisition Required</h3>
-          <p className="risk-idle__desc text-mono">
+          <h3 className="text-2xl font-bold text-[#1A1A1A] mb-2">Location Acquisition Required</h3>
+          <p className="text-sm text-gray-500 max-w-md mx-auto leading-relaxed">
             GPS coordinates determine your base state, resolve hyper-local safe zones, and query the weather oracle for environmental risk factors.
           </p>
 
-          <button type="button" className="risk-idle__btn" onClick={handleAcquireLocation}>
-            <MapPin size={16} />
-            <span>Acquire GPS Location</span>
+          <button
+            type="button"
+            onClick={handleAcquireLocation}
+            className="mt-8 bg-[#FF6B00] hover:bg-[#D45900] text-white px-8 py-3 rounded-xl font-bold text-sm transition-all inline-flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            📍 Acquire GPS Location
           </button>
 
-          <span className="text-mono risk-idle__privacy">
+          <p className="text-xs text-gray-400 mt-3">
             Location is used for risk calculation only · Not stored permanently
-          </span>
+          </p>
         </motion.div>
       )}
 
       {/* Phase: Locating */}
       {phase === 'locating' && (
-        <motion.div className="risk-locating" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="risk-locating__pulse">
-            <motion.div className="locating-dot"
+        <motion.div className="text-center py-16" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <div className="w-10 h-10 mx-auto mb-4 rounded-full bg-[#1A3C5E] flex items-center justify-center">
+            <motion.div
+              className="w-3 h-3 rounded-full bg-white"
               animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
           </div>
-          <span className="text-mono">ACQUIRING COORDINATES...</span>
-          {error && <span className="text-mono" style={{ color: 'var(--amber)', fontSize: '0.7rem' }}>{error}</span>}
+          <span className="text-sm text-gray-500 font-medium">Acquiring coordinates...</span>
+          {error && <span className="text-xs text-[#E85D04] block mt-2">{error}</span>}
         </motion.div>
       )}
 
       {/* Phase: Calculating / Complete */}
       {(phase === 'calculating' || phase === 'complete') && (
-        <motion.div className="risk-calculating"
+        <motion.div
+          className="flex flex-col gap-5"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          {/* Location + Weather banner */}
-          <div className="risk-info-banner">
-            <div className="risk-location-badge glass">
-              <MapPin size={14} style={{ color: 'var(--neon)' }} />
-              <span className="text-mono">{coords?.formatted}</span>
-              <span className="risk-location-badge__sep">→</span>
-              <span className="text-mono" style={{ color: 'var(--neon)' }}>{baseState}</span>
-              {usedFallback && <span className="text-mono risk-location-badge__demo">DEMO</span>}
+          {/* GPS + Weather Info Strip */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-white/50 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 flex items-center gap-2 shadow-sm">
+              <MapPin size={16} className="text-[#1A3C5E] shrink-0" />
+              <span className="font-['JetBrains_Mono',monospace] text-sm font-bold text-[#1A3C5E]">{coords?.formatted}</span>
+              <span className="text-[#1A3C5E]/50 mx-1">→</span>
+              <span className="font-bold text-sm text-[#1A3C5E]">{baseState}</span>
+              {usedFallback && (
+                <span className="ml-auto bg-[#FF6B00]/10 text-[#FF6B00] rounded-full px-2 py-0.5 text-[10px] font-bold border border-[#FF6B00]/20">DEMO</span>
+              )}
             </div>
 
             {weatherData && (
-              <div className="weather-badge glass">
-                <span className="weather-badge__icon">{weatherData.icon}</span>
-                <div className="weather-badge__data">
-                  <span className="text-mono"><Thermometer size={10} /> {weatherData.temp}°C</span>
-                  <span className="text-mono"><Cloud size={10} /> {weatherData.rainfall}mm</span>
-                  <span className="text-mono"><Wind size={10} /> AQI {weatherData.aqi}</span>
+              <div className="bg-white/50 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
+                <span className="text-lg">{weatherData.icon}</span>
+                <div className="flex items-center gap-3 text-sm text-[#1A3C5E] font-semibold">
+                  <span className="flex items-center gap-1"><Thermometer size={12} className="text-[#FF6B00]" /> {weatherData.temp}°C</span>
+                  <span className="flex items-center gap-1"><Cloud size={12} className="text-blue-500" /> {weatherData.rainfall}mm</span>
+                  <span className="flex items-center gap-1"><Wind size={12} className="text-gray-500" /> AQI {weatherData.aqi}</span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Terminal loader */}
-          <TerminalLoader
-            lines={terminalLines}
-            onComplete={handleTerminalComplete}
-            riskResult={riskResult}
-          />
+          {/* Terminal — deliberate dark design inset */}
+          <div className="shadow-2xl rounded-2xl overflow-hidden border border-white/10 bg-[#0F172A]">
+            <TerminalLoader
+              lines={terminalLines}
+              onComplete={handleTerminalComplete}
+              riskResult={riskResult}
+            />
+          </div>
 
-          {/* Risk grade card */}
+          {/* Risk Grade Card */}
           {phase === 'complete' && riskResult && (
-            <motion.div className="risk-grade-card"
-              initial={{ opacity: 0, scale: 0.9 }}
+            <motion.div
+              className="backdrop-blur-xl bg-white/40 rounded-2xl border border-white/40 shadow-xl p-6"
+              initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.2 }}
             >
-              <div className={`risk-grade-badge grade--${riskResult.grade}`}>
-                <span className="risk-grade-badge__letter">{riskResult.grade}</span>
-                <span className="risk-grade-badge__label text-mono">RISK GRADE</span>
-              </div>
-
-              <div className="risk-factors-grid">
-                <div className="risk-factor">
-                  <span className="risk-factor__label text-mono">Environmental (E)</span>
-                  <div className="risk-factor__bar">
-                    <motion.div className="risk-factor__fill"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${riskResult.factors.environmental * 100}%` }}
-                      transition={{ duration: 0.8, delay: 0.4 }}
-                    />
-                  </div>
-                  <span className="risk-factor__value text-mono">{riskResult.factors.environmental.toFixed(2)}</span>
-                </div>
-                <div className="risk-factor">
-                  <span className="risk-factor__label text-mono">Personal (P)</span>
-                  <div className="risk-factor__bar">
-                    <motion.div className="risk-factor__fill personal"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${riskResult.factors.personal * 100}%` }}
-                      transition={{ duration: 0.8, delay: 0.6 }}
-                    />
-                  </div>
-                  <span className="risk-factor__value text-mono">{riskResult.factors.personal.toFixed(2)}</span>
-                </div>
-                <div className="risk-factor">
-                  <span className="risk-factor__label text-mono">Market (M)</span>
-                  <div className="risk-factor__bar">
-                    <motion.div className="risk-factor__fill market"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${riskResult.factors.market * 100}%` }}
-                      transition={{ duration: 0.8, delay: 0.8 }}
-                    />
-                  </div>
-                  <span className="risk-factor__value text-mono">{riskResult.factors.market.toFixed(2)}</span>
+              <div className="flex gap-6 items-start">
+                {/* Grade Badge */}
+                <div className={`shadow-[0_0_15px_rgba(255,107,0,0.4)] w-20 h-20 rounded-2xl flex flex-col items-center justify-center shrink-0 ${gradeStyles[riskResult.grade] || gradeStyles.C}`}>
+                  <span className="text-4xl font-black leading-none">{riskResult.grade}</span>
+                  <span className="text-[10px] uppercase font-bold tracking-widest mt-1 opacity-70">Risk Grade</span>
                 </div>
 
-                {/* Safe zone discount indicator */}
-                {riskResult.safeZone?.isSafe && (
-                  <motion.div className="safe-zone-badge"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 1 }}
-                  >
-                    <span className="safe-zone-badge__icon">🛡️</span>
-                    <div className="safe-zone-badge__text">
-                      <span className="text-mono" style={{ color: 'var(--neon)', fontSize: '0.7rem' }}>SAFE ZONE DISCOUNT</span>
-                      <span className="text-mono" style={{ fontSize: '0.65rem' }}>
-                        {riskResult.safeZone.zoneName} — ₹{riskResult.safeZone.discount}/week off
-                      </span>
+                {/* Factor Bars */}
+                <div className="flex-1 flex flex-col gap-4">
+                  {[
+                    { key: 'environmental', label: 'Environmental (E)', color: barColors.environmental },
+                    { key: 'personal', label: 'Personal (P)', color: barColors.personal },
+                    { key: 'market', label: 'Market (M)', color: barColors.market },
+                  ].map((f) => (
+                    <div key={f.key}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm font-medium text-[#1A1A1A]">{f.label}</span>
+                        <span className="font-['JetBrains_Mono',monospace] text-sm text-[#1A3C5E]">
+                          {riskResult.factors[f.key].toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="bg-gray-100 rounded-full h-2">
+                        <motion.div
+                          className={`${f.color} rounded-full h-2`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${riskResult.factors[f.key] * 100}%` }}
+                          transition={{ duration: 0.8, delay: 0.4 }}
+                        />
+                      </div>
                     </div>
-                  </motion.div>
-                )}
+                  ))}
+
+                  {/* Safe zone discount */}
+                  {riskResult.safeZone?.isSafe && (
+                    <motion.div
+                      className="flex items-center gap-2 bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl px-3 py-2 mt-1"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 1 }}
+                    >
+                      <span className="text-lg">🛡️</span>
+                      <div>
+                        <span className="text-xs font-semibold text-[#0F7B6C] block">Safe Zone Discount</span>
+                        <span className="text-xs text-gray-500">{riskResult.safeZone.zoneName} — ₹{riskResult.safeZone.discount}/week off</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}

@@ -1,71 +1,94 @@
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, Download } from 'lucide-react';
+import { FileText, Download, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCenterData } from '../../hooks/useCenterData';
 import DashSidebar from '../DashSidebar';
 import { downloadPolicyCertificate } from '../../utils/generateCertificate';
-import '../../pages/Dashboard.css';
+
+function gradeStyle(g) {
+  if (g === 'A') return 'badge-navy';
+  if (g === 'B') return 'badge-teal';
+  return 'badge-amber';
+}
 
 export default function PolicySummary() {
   const { policy, isLoading } = useCenterData();
-  
-  if (isLoading) return <div style={{ color: 'var(--neon)', textAlign: 'center', marginTop: '20vh' }}>SYSTEM_SYNC...</div>;
+
+  if (isLoading) {
+    return (
+      <div className="relative min-h-screen flex items-center justify-center font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
+        <div className="absolute inset-0 z-0">
+          <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+            <source src="/assets/videos/atmosphere.mp4" type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-white/30 backdrop-blur-sm" />
+        </div>
+        <span className="relative z-10 text-sm font-semibold text-slate-600 bg-white/30 backdrop-blur-md px-6 py-3 rounded-full border border-white/40 shadow-sm">Loading policy...</span>
+      </div>
+    );
+  }
   if (!policy) return null;
 
   return (
-    <div className="dashboard-layout" style={{ minHeight: '100vh', background: 'var(--obsidian)' }}>
+    <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
+      <div className="absolute inset-0 z-0">
+        <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+          <source src="/assets/videos/atmosphere.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-white/30 backdrop-blur-sm" />
+      </div>
+
       <DashSidebar activeTab="policy" />
-      
-      <main className="dash-main" style={{ padding: '2rem' }}>
-        <motion.div 
-          className="glass-strong"
+
+      <main className="relative z-10 flex-1 p-8 overflow-y-auto">
+        <motion.div
+          className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl shadow-xl p-8 max-w-3xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{ padding: '2rem', borderRadius: '16px', border: '1px solid var(--neon)' }}
+          transition={{ duration: 0.4 }}
         >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'rgba(57, 255, 20, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--neon)' }}>
-              <FileText size={24} />
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-white/40 border border-white/20 shadow-sm flex items-center justify-center">
+                <FileText className="w-6 h-6 text-[#1A3C5E]" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-[#1A1A1A]">Policy Document</h1>
+                <span className="mono-data text-sm font-semibold">{policy.policyId}</span>
+              </div>
             </div>
-            <div>
-              <h1 className="text-heading" style={{ margin: 0 }}>Policy Document</h1>
-              <span className="text-mono" style={{ color: 'var(--neon)' }}>{policy.policyId}</span>
-            </div>
+            <button
+              onClick={() => downloadPolicyCertificate(policy)}
+              className="bg-[#0F172A] hover:bg-black text-white px-6 py-2.5 rounded-xl flex items-center gap-2.5 text-sm font-semibold transition-all shadow-[0_10px_20px_rgba(0,0,0,0.15)] hover:-translate-y-0.5"
+            >
+              <Download size={16} /> Export PDF
+            </button>
           </div>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => downloadPolicyCertificate(policy)}
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '8px', 
-              background: 'transparent', border: '1px solid var(--neon)', color: 'var(--neon)', 
-              padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontFamily: 'var(--font-mono)' 
-            }}
-          >
-            <Download size={16} /> <span>EXPORT_PDF</span>
-          </motion.button>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', marginTop: '2rem' }}>
-          <div>
-            <span className="text-mono" style={{ color: 'var(--white-dim)', fontSize: '0.8rem' }}>INSURED_NAME</span>
-            <p className="text-serif" style={{ fontSize: '1.2rem', marginTop: '0.5rem' }}>{policy.insuredName}</p>
+          {/* Data Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {[
+              { label: 'Insured Name', value: policy.insuredName },
+              { label: 'Platform', value: policy.platform },
+              { label: 'Risk Grade', value: <span className={gradeStyle(policy.riskGrade)}>{policy.riskGrade || 'A'}</span> },
+              { label: 'Base State', value: policy.baseState?.name || 'Unknown' },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <p className="section-label">{label}</p>
+                <p className="text-sm font-semibold text-[#1A1A1A] mt-1">{value}</p>
+              </div>
+            ))}
           </div>
-          <div>
-            <span className="text-mono" style={{ color: 'var(--white-dim)', fontSize: '0.8rem' }}>PLATFORM</span>
-            <p className="text-serif" style={{ fontSize: '1.2rem', marginTop: '0.5rem' }}>{policy.platform}</p>
-          </div>
-          <div>
-            <span className="text-mono" style={{ color: 'var(--white-dim)', fontSize: '0.8rem' }}>RISK_GRADE</span>
-            <p className="text-serif" style={{ fontSize: '1.2rem', marginTop: '0.5rem', color: policy.riskGrade === 'A' ? 'var(--neon)' : '#FFB000' }}>{policy.riskGrade || 'A'}</p>
-          </div>
-          <div>
-            <span className="text-mono" style={{ color: 'var(--white-dim)', fontSize: '0.8rem' }}>BASE_STATE</span>
-            <p className="text-serif" style={{ fontSize: '1.2rem', marginTop: '0.5rem' }}>{policy.baseState?.name || 'Unknown'}</p>
-          </div>
-        </div>
-      </motion.div>
+
+          {/* Back Link */}
+          <Link
+            to="/dashboard"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-[#0F172A] mt-8 transition-colors"
+          >
+            ← Back to Command Center
+          </Link>
+        </motion.div>
       </main>
     </div>
   );

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 
@@ -17,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PolicySummary from './components/centers/PolicySummary';
 import BillingLedger from './components/centers/BillingLedger';
 import ClaimTriggerLog from './components/centers/ClaimTriggerLog';
+import AnalyticsHub from './components/centers/AnalyticsHub';
 
 function App() {
   return (
@@ -64,6 +64,26 @@ function App() {
                 <ProtectedRoute>
                   <ClaimTriggerLog />
                 </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/how-it-works" 
+              element={
+                <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center font-['Inter',sans-serif]"><h1 className="text-2xl font-bold text-[#0F172A]/40 tracking-widest uppercase">How It Works <span className="text-[#FF6B00]">Coming Soon</span></h1></div>
+              } 
+            />
+            <Route 
+              path="/analytics" 
+              element={
+                <ProtectedRoute>
+                  <AnalyticsHub />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/about" 
+              element={
+                <div className="min-h-screen bg-[#FAFAF8] flex items-center justify-center font-['Inter',sans-serif]"><h1 className="text-2xl font-bold text-[#0F172A]/40 tracking-widest uppercase">Brand Profile <span className="text-[#FF6B00]">Under Construction</span></h1></div>
               } 
             />
           </Routes>
