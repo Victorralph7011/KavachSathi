@@ -55,6 +55,50 @@ const SAFE_ZONES = [
 // Safe zone discount: ₹2/week for historically safe zones
 const SAFE_ZONE_DISCOUNT = 2;
 
+// ─── Geographical Classification (Backend Integration) ─────────
+// Maps Indian states to URBAN/RURAL for the actuarial engine
+const URBAN_STATES = new Set([
+  'Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu',
+  'Telangana', 'West Bengal', 'Gujarat', 'Haryana',
+]);
+
+// Maps Indian states to the closest backend ward ID
+const STATE_WARD_MAP = {
+  'Maharashtra': { wardId: 'MUMBAI_WESTERN', city: 'Mumbai' },
+  'Delhi': { wardId: 'DELHI_CENTRAL', city: 'Delhi' },
+  'Karnataka': { wardId: 'BANGALORE_CENTRAL', city: 'Bangalore' },
+  'Tamil Nadu': { wardId: 'CHENNAI_CENTRAL', city: 'Chennai' },
+  'Telangana': { wardId: 'HYDERABAD_CENTRAL', city: 'Hyderabad' },
+  'West Bengal': { wardId: 'KOLKATA_CENTRAL', city: 'Kolkata' },
+  'Gujarat': { wardId: 'AHMEDABAD_CENTRAL', city: 'Ahmedabad' },
+  'Rajasthan': { wardId: 'JAIPUR_CENTRAL', city: 'Jaipur' },
+  'Uttar Pradesh': { wardId: 'DELHI_EAST', city: 'Delhi' },
+  'Haryana': { wardId: 'DELHI_WEST', city: 'Delhi' },
+  'Punjab': { wardId: 'DELHI_NORTH', city: 'Delhi' },
+  'Kerala': { wardId: 'BANGALORE_SOUTH', city: 'Bangalore' },
+  'Bihar': { wardId: 'KOLKATA_CENTRAL', city: 'Kolkata' },
+};
+
+const DEFAULT_WARD = { wardId: 'LOCAL_ZONE', city: 'India' };
+
+/**
+ * Classify a state as URBAN or RURAL for the backend actuarial engine.
+ * @param {string} stateName
+ * @returns {'URBAN' | 'RURAL'}
+ */
+export function getAreaCategory(stateName) {
+  return URBAN_STATES.has(stateName) ? 'URBAN' : 'RURAL';
+}
+
+/**
+ * Map a state to {wardId, city} for the backend pricing endpoint.
+ * @param {string} stateName
+ * @returns {{ wardId: string, city: string }}
+ */
+export function getWardId(stateName) {
+  return STATE_WARD_MAP[stateName] || DEFAULT_WARD;
+}
+
 // ─── Mock Weather Data (simulated oracle) ────────────────────
 const MOCK_WEATHER = {
   'Maharashtra': { temp: 32, humidity: 78, rainfall: 12, aqi: 110, condition: 'Partly Cloudy', icon: '⛅' },
@@ -186,18 +230,23 @@ export function calculateRiskScore(stateName, platformRiskModifier, coords = nul
  */
 export function calculatePremium(grade, termType = 'weekly', safeZoneDiscount = 0) {
   const BASE_PREMIUMS = {
-    A: { weekly: 25, 'per-mile': 0.15 },
-    B: { weekly: 40, 'per-mile': 0.25 },
-    C: { weekly: 65, 'per-mile': 0.40 },
+    A: { weekly: 25 },
+    B: { weekly: 40 },
+    C: { weekly: 50 },  // Hard-capped at ₹50 (compliance)
   };
   
   let premium = BASE_PREMIUMS[grade]?.[termType] ?? BASE_PREMIUMS.B[termType];
   
   // Apply safe zone discount (only for weekly)
   if (termType === 'weekly' && safeZoneDiscount > 0) {
-    premium = Math.max(premium - safeZoneDiscount, 10); // minimum ₹10
+    premium = premium - safeZoneDiscount;
   }
-  
+
+  // ── COMPLIANCE LOCK: ₹20–₹50 weekly hard cap ──
+  if (termType === 'weekly') {
+    premium = Math.max(20, Math.min(50, premium));
+  }
+
   return premium;
 }
 

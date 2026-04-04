@@ -1,8 +1,25 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Search } from 'lucide-react';
+import { Search, ShieldAlert, Shield } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useCenterData } from '../../hooks/useCenterData';
+import { usePolicy } from '../../contexts/PolicyContext';
 import DashSidebar from '../DashSidebar';
+import { fetchPlatformHealth } from '../../services/api';
+
+// ─── Demo seed data (8 weeks) ────────────────────────────────
+const DEMO_PAYMENTS = Array.from({ length: 8 }, (_, i) => {
+  const date = new Date();
+  date.setDate(date.getDate() - (i * 7));
+  const isSurge = i === 3; // One surge event
+  return {
+    id: `DEMO-PMT-${String(8 - i).padStart(3, '0')}`,
+    paymentId: `KS-BIL-${Date.now().toString(36).toUpperCase()}-${i}`,
+    amount: isSurge ? 48 : (30 + Math.floor(Math.random() * 15)),
+    status: isSurge ? 'DYNAMIC_SURGE' : 'PAID',
+    createdAt: date.toISOString(),
+  };
+});
 
 const PAGE_SIZE = 6;
 
@@ -19,22 +36,36 @@ function StatusBadge({ status }) {
 
 export default function BillingLedger() {
   const { policy, payments, isLoading } = useCenterData();
+  const policyCtx = usePolicy();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
+  const [backendHealth, setBackendHealth] = useState(null);
 
-  const totalPaid = useMemo(() => payments.reduce((sum, p) => sum + (p.amount || 0), 0), [payments]);
-  const claimsPaid = useMemo(() => payments.filter(p => p.status === 'DYNAMIC_SURGE' || p.status === 'surge').reduce((sum, p) => sum + (p.amount || 0), 0), [payments]);
+  // Fetch backend health for KPI enrichment
+  const loadHealth = useCallback(async () => {
+    const res = await fetchPlatformHealth();
+    if (res.success && res.data) setBackendHealth(res.data?.platform_health || res.data);
+  }, []);
+  useEffect(() => { loadHealth(); }, [loadHealth]);
+
+  // Use demo data when no real payments exist
+  const effectivePayments = payments.length > 0 ? payments : DEMO_PAYMENTS;
+  const isDemoMode = payments.length === 0;
+
+  const totalPaid = useMemo(() => effectivePayments.reduce((sum, p) => sum + (p.amount || 0), 0), [effectivePayments]);
+  const claimsPaid = useMemo(() => effectivePayments.filter(p => p.status === 'DYNAMIC_SURGE' || p.status === 'surge').reduce((sum, p) => sum + (p.amount || 0), 0), [effectivePayments]);
   const netBalance = totalPaid - claimsPaid;
+  const lossRatio = backendHealth?.loss_ratio ? (backendHealth.loss_ratio * 100).toFixed(1) + '%' : null;
 
   const filtered = useMemo(() => {
-    if (!search) return payments;
+    if (!search) return effectivePayments;
     const q = search.toLowerCase();
-    return payments.filter(p =>
+    return effectivePayments.filter(p =>
       new Date(p.createdAt).toLocaleDateString('en-IN').toLowerCase().includes(q) ||
       (p.paymentId || '').toLowerCase().includes(q) ||
       (p.status || '').toLowerCase().includes(q)
     );
-  }, [payments, search]);
+  }, [effectivePayments, search]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
@@ -52,7 +83,42 @@ export default function BillingLedger() {
       </div>
     );
   }
-  if (!policy) return null;
+
+  // No-policy CTA instead of blank screen
+  if (!policy) {
+    return (
+      <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
+        <div className="absolute inset-0 z-0">
+          <video autoPlay loop muted playsInline className="w-full h-full object-cover">
+            <source src="/assets/videos/atmosphere.mp4" type="video/mp4" />
+          </video>
+          <div className="absolute inset-0 bg-white/30 backdrop-blur-sm" />
+        </div>
+        <DashSidebar activeTab="billing" />
+        <main className="relative z-10 flex-1 flex items-center justify-center p-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl p-12 text-center max-w-md shadow-xl"
+          >
+            <div className="w-16 h-16 rounded-full bg-[#FF6B00]/10 border border-[#FF6B00]/20 flex items-center justify-center mx-auto mb-5">
+              <Shield size={28} className="text-[#FF6B00]" />
+            </div>
+            <h2 className="text-xl font-bold text-[#1A1A1A] mb-2">Activate Your Coverage</h2>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed">
+              Complete the registration wizard to activate your parametric policy. Your billing ledger will populate automatically with weekly premium records.
+            </p>
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-2 bg-[#0F172A] hover:bg-black text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all shadow-lg hover:-translate-y-0.5"
+            >
+              Go to Dashboard →
+            </Link>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
@@ -77,8 +143,8 @@ export default function BillingLedger() {
             <h1 className="m-0 text-2xl font-bold text-[#1A1A1A] tracking-tight">Billing Center</h1>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10B981] animate-pulse" />
-            <span className="text-sm font-semibold text-emerald-600">Live Sync</span>
+            <div className={`w-2.5 h-2.5 rounded-full ${isDemoMode ? 'bg-amber-400' : 'bg-emerald-500'} shadow-[0_0_8px_${isDemoMode ? '#FBBF24' : '#10B981'}] animate-pulse`} />
+            <span className={`text-sm font-semibold ${isDemoMode ? 'text-amber-600' : 'text-emerald-600'}`}>{isDemoMode ? 'Demo Mode' : 'Live Sync'}</span>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Shield, CreditCard, AlertCircle, BarChart3, Info } from 'lucide-react';
+import { LayoutDashboard, Shield, CreditCard, AlertCircle, BarChart3, Info, HelpCircle } from 'lucide-react';
 
 const NAV_ITEMS = [
   { key: 'dashboard', label: 'Overview',  route: '/dashboard', icon: LayoutDashboard },
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { key: 'policy',    label: 'Policy',    route: '/policy',    icon: Shield },
   { key: 'billing',   label: 'Billing',   route: '/billing',   icon: CreditCard },
   { key: 'claims',    label: 'Claim',     route: '/claims',    icon: AlertCircle },
+  { key: 'howItWorks', label: 'How it Works', route: '/how-it-works', icon: HelpCircle },
 ];
 
 export default function DashSidebar({ activeTab }) {

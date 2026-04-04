@@ -44,7 +44,7 @@ export const RiskValidationSchema = z.object({
 
 // ─── Step 3: Issuance ─────────────────────────────────────────
 export const IssuanceSchema = z.object({
-  termType: z.enum(['weekly', 'per-mile'], {
+  termType: z.literal('weekly', {
     errorMap: () => ({ message: 'Select a term type' }),
   }),
   premiumAmount: z.number().positive(),

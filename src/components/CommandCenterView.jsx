@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { CloudRain, Thermometer, Download, Zap } from 'lucide-react';
+import { CloudRain, Thermometer, Download, Zap, Building2, Trees } from 'lucide-react';
 import DashSidebar from './DashSidebar';
 import { useCenterData } from '../hooks/useCenterData';
+import { usePolicy } from '../contexts/PolicyContext';
 import { downloadPolicyCertificate } from '../utils/generateCertificate';
 
 /* ─── Risk Ring ─── */
@@ -55,9 +56,11 @@ function TriggerBadge({ status }) {
 export default function CommandCenterView({ policy }) {
   const navigate = useNavigate();
   const { payments, triggers } = useCenterData();
+  const policyCtx = usePolicy();
 
   const zoneId = policy?.policyId || 'MAH-ZONE-04';
   const riskScore = Math.round((policy?.riskScore || 0.82) * 100);
+  const areaCategory = policyCtx?.areaCategory || policy?.areaCategory || 'URBAN';
 
   return (
     <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
@@ -83,6 +86,14 @@ export default function CommandCenterView({ policy }) {
                 <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] rounded-md">ARMED</span>
                 <span className="bg-blue-500/10 border border-blue-500/30 text-blue-600 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] rounded-md flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" /> MONITORING
+                </span>
+                <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] rounded-md flex items-center gap-1.5 border ${
+                  areaCategory === 'URBAN'
+                    ? 'bg-[#1A3C5E]/10 border-[#1A3C5E]/30 text-[#1A3C5E]'
+                    : 'bg-[#0F7B6C]/10 border-[#0F7B6C]/30 text-[#0F7B6C]'
+                }`}>
+                  {areaCategory === 'URBAN' ? <Building2 size={11} /> : <Trees size={11} />}
+                  {areaCategory}
                 </span>
               </div>
             </div>

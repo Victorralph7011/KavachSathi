@@ -97,8 +97,6 @@ export default function Wizard() {
                   <div className="dropdown-menu glass-strong">
                     <div className="dropdown-bg-mesh" />
                     <button className="dropdown-item active">Weekly</button>
-                    <button className="dropdown-item">Monthly</button>
-                    <button className="dropdown-item">Per-Mile</button>
                   </div>
                 </div>
 

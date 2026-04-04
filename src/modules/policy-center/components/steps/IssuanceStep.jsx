@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheck, Clock, Route, CheckCircle2, 
   CloudRain, Thermometer, Wind, Activity, Zap,
-  Shield, CreditCard 
+  Shield, CreditCard, AlertTriangle 
 } from 'lucide-react';
-import { calculatePremium } from '../../utils/riskEngine';
+import { calculatePremium, getAreaCategory, getWardId } from '../../utils/riskEngine';
 import { maskAadhaar } from '../../utils/aadhaarMask';
 import { PLATFORMS } from '../../constants/platforms';
 import { launchRazorpayCheckout, formatINR } from '../../../billing-center/razorpay';
 import { issuePolicy, recordPayment, seedMockTriggers } from '../../services/policyService';
+import { enrollPolicy } from '../../../../services/api';
 import { Link } from 'react-router-dom';
 
 const TRIGGER_LIST = [
@@ -51,15 +52,32 @@ export default function IssuanceStep({ form, onBind, policyId }) {
   const safeZone = watch('safeZone');
   const termType = watch('termType') || 'weekly';
   const consentGiven = watch('consentGiven') || false;
+  const backendPremium = watch('backendPremium');
+  const areaCategory = watch('areaCategory');
+  const wardId = watch('wardId');
+  const backendCity = watch('backendCity');
 
   const [bindState, setBindState] = useState('idle');
   const [paymentData, setPaymentData] = useState(null);
   const [transactionLog, setTransactionLog] = useState([]);
+  const [complianceWarning, setComplianceWarning] = useState(null);
 
   const platformInfo = platform ? PLATFORMS[platform] : null;
   const safeZoneDiscount = safeZone?.isSafe ? safeZone.discount : 0;
-  const basePremium = riskGrade ? calculatePremium(riskGrade, termType, 0) : 0;
-  const finalPremium = riskGrade ? calculatePremium(riskGrade, termType, safeZoneDiscount) : 0;
+
+  // ── COMPLIANCE LOCK: Weekly-only, use backend premium when available, clamp to ₹20–₹50 ──
+  let rawPremium;
+  if (backendPremium) {
+    rawPremium = backendPremium;
+  } else {
+    rawPremium = riskGrade ? calculatePremium(riskGrade, 'weekly', safeZoneDiscount) : 0;
+  }
+
+  let finalPremium = rawPremium;
+  let capApplied = false;
+  finalPremium = Math.max(20, Math.min(50, rawPremium));
+  capApplied = finalPremium !== rawPremium;
+  const basePremium = riskGrade ? calculatePremium(riskGrade, 'weekly', 0) : 0;
 
   const addLog = (type, message) => {
     setTransactionLog(prev => [
@@ -99,6 +117,33 @@ export default function IssuanceStep({ form, onBind, policyId }) {
         addLog('SYSTEM', 'Updating policy status → ISSUED');
         
         setBindState('bound');
+
+        // ── BACKEND ENROLLMENT: Register with actuarial engine ──
+        const enrollArea = areaCategory || getAreaCategory(baseState);
+        const enrollWard = wardId || getWardId(baseState).wardId;
+        const enrollCity = backendCity || getWardId(baseState).city;
+        const enrollPlatform = platform?.toUpperCase() || 'ZOMATO';
+
+        addLog('SYSTEM', 'Enrolling in backend actuarial engine...');
+        try {
+          const enrollRes = await enrollPolicy({
+            worker_id: workerId || 'DEMO-001',
+            worker_name: fullName || 'Demo Worker',
+            area_category: enrollArea,
+            ward_id: enrollWard,
+            city: enrollCity,
+            platform_name: enrollPlatform,
+            upi_id: null,
+          });
+          if (enrollRes.success) {
+            addLog('SYSTEM', `Backend policy: ${enrollRes.data?.policy?.policy_id || 'ENROLLED'}`);
+            console.log('[KAVACH] Backend enrollment:', enrollRes.data);
+          } else {
+            addLog('SYSTEM', 'Backend enrollment deferred — offline mode');
+          }
+        } catch (e) {
+          addLog('SYSTEM', 'Backend unavailable — Firebase-only mode');
+        }
 
         await issuePolicy(policyId, data);
         await recordPayment(policyId, data);
@@ -157,7 +202,7 @@ export default function IssuanceStep({ form, onBind, policyId }) {
               {[
                 { label: 'INSURED', value: fullName },
                 { label: 'PLATFORM', value: <span>{platformInfo?.icon} {platformInfo?.name}</span> },
-                { label: 'PREMIUM', value: <span className="font-['JetBrains_Mono',monospace] text-[#1A3C5E]">{formatINR(finalPremium)}/{termType === 'weekly' ? 'wk' : 'km'}</span> },
+                { label: 'PREMIUM', value: <span className="font-['JetBrains_Mono',monospace] text-[#1A3C5E]">{formatINR(finalPremium)}/wk</span> },
                 { label: 'RISK GRADE', value: <span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${gradeStyle(riskGrade)}`}>{riskGrade}</span> },
               ].map(({ label, value }) => (
                 <div key={label} className="text-center">
@@ -273,34 +318,25 @@ export default function IssuanceStep({ form, onBind, policyId }) {
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.15 }}
       >
-        <span className="text-sm font-semibold text-[#1A1A1A] mb-3 block">Select Coverage Term</span>
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => handleTermToggle('weekly')}
-            className={`backdrop-blur-md border-2 rounded-2xl p-5 text-left cursor-pointer transition-all
-              ${termType === 'weekly' ? 'border-[#1A3C5E] bg-white/50 shadow-sm' : 'border-white/40 bg-white/20 hover:border-[#1A3C5E] hover:bg-white/30'}
-            `}
+        <span className="text-sm font-semibold text-[#1A1A1A] mb-3 block">Coverage Term</span>
+        <div className="grid grid-cols-1 gap-4 max-w-sm">
+          <div
+            className="backdrop-blur-md border-2 rounded-2xl p-5 text-left border-[#1A3C5E] bg-white/50 shadow-sm relative"
           >
+            <div className="absolute top-3 right-3">
+              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest">
+                <CheckCircle2 size={10} /> Weekly Only
+              </span>
+            </div>
             <Clock size={32} className="text-[#1A3C5E] mb-2" />
-            <p className="font-bold text-[#1A1A1A]">Weekly</p>
+            <p className="font-bold text-[#1A1A1A]">Weekly Plan</p>
             <p className="text-[#E85D04] font-semibold text-sm mt-1">
               {formatINR(calculatePremium(riskGrade, 'weekly', safeZoneDiscount))}/week
             </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleTermToggle('per-mile')}
-            className={`backdrop-blur-md border-2 rounded-2xl p-5 text-left cursor-pointer transition-all
-              ${termType === 'per-mile' ? 'border-[#1A3C5E] bg-white/50 shadow-sm' : 'border-white/40 bg-white/20 hover:border-[#1A3C5E] hover:bg-white/30'}
-            `}
-          >
-            <Route size={32} className="text-[#1A3C5E] mb-2" />
-            <p className="font-bold text-[#1A1A1A]">Per-Mile</p>
-            <p className="text-[#E85D04] font-semibold text-sm mt-1">
-              ₹{calculatePremium(riskGrade, 'per-mile')}/km
+            <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+              Loss of Income coverage · Food Delivery Persona · Capped ₹20–₹50
             </p>
-          </button>
+          </div>
         </div>
       </motion.div>
 
@@ -313,7 +349,7 @@ export default function IssuanceStep({ form, onBind, policyId }) {
         <span className="text-xs text-gray-400 uppercase tracking-wider block">Estimated Premium</span>
         <div className="mt-2 flex items-baseline justify-center gap-1">
           <span className="font-['JetBrains_Mono',monospace] text-5xl font-bold text-[#1A3C5E]">₹{finalPremium}</span>
-          <span className="text-lg text-gray-400">/{termType === 'weekly' ? 'wk' : 'km'}</span>
+          <span className="text-lg text-gray-400">/wk</span>
         </div>
 
         {safeZoneDiscount > 0 && termType === 'weekly' && (
