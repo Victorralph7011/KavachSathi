@@ -16,6 +16,8 @@ export function usePolicy() {
   return useContext(PolicyContext);
 }
 
+const IS_DEMO_MODE = !import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY === 'demo-kavachsathi-key';
+
 export function PolicyProvider({ children }) {
   const { currentUser } = useAuth();
 
@@ -44,6 +46,20 @@ export function PolicyProvider({ children }) {
       }
 
       setIsLoading(true);
+
+      if (IS_DEMO_MODE) {
+        const stored = localStorage.getItem(`kavach_policies_${currentUser.uid}`);
+        let policies = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(policies)) policies = [];
+        const active = policies.find(p => p.status === 'ISSUED' || p.status === 'BOUND');
+        setPolicyHistory(policies);
+        setActivePolicy(active || null);
+        setPayments([]);
+        setTriggers([]);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const q = query(
           collection(db, 'policies'),
@@ -129,6 +145,18 @@ export function PolicyProvider({ children }) {
     refreshPolicy: async () => {
       if (!currentUser) return;
       setIsLoading(true);
+
+      if (IS_DEMO_MODE) {
+        const stored = localStorage.getItem(`kavach_policies_${currentUser.uid}`);
+        let policies = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(policies)) policies = [];
+        const active = policies.find(p => p.status === 'ISSUED' || p.status === 'BOUND');
+        setPolicyHistory(policies);
+        setActivePolicy(active || null);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const q = query(collection(db, 'policies'), where('ownerId', '==', currentUser.uid));
         const snapshot = await getDocs(q);

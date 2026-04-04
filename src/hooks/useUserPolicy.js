@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import db from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+
+const IS_DEMO_MODE = !import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.VITE_FIREBASE_API_KEY === 'demo-kavachsathi-key';
 
 export function useUserPolicy() {
   const { currentUser } = useAuth();
@@ -19,6 +21,19 @@ export function useUserPolicy() {
       }
 
       setIsLoading(true);
+
+      if (IS_DEMO_MODE) {
+        // Resolve Demo Mode locally
+        const stored = localStorage.getItem(`kavach_policies_${currentUser.uid}`);
+        let policies = stored ? JSON.parse(stored) : [];
+        if (!Array.isArray(policies)) policies = [];
+        setPolicyHistory(policies);
+        const active = policies.find(p => p.status === 'ISSUED' || p.status === 'BOUND');
+        setActivePolicy(active || null);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const q = query(
           collection(db, 'policies'),
