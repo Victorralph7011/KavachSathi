@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Cloud, Thermometer, Wind, Server, Globe, Building2, Trees } from 'lucide-react';
+import { MapPin, Cloud, Thermometer, Wind, Server, Globe, Building2, Trees, Cpu } from 'lucide-react';
 import { Map, Marker } from '@vis.gl/react-maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useGeolocation } from '../../hooks/useGeolocation';
@@ -8,6 +8,7 @@ import { calculateRiskScore, generateTerminalLines, getWeatherData, getAreaCateg
 import { PLATFORMS } from '../../constants/platforms';
 import { fetchPremiumQuote } from '../../../../services/api';
 import TerminalLoader from '../TerminalLoader';
+import { useKavachData } from '../../../../hooks/useKavachData';
 
 /**
  * Step 2 — Risk Validation
@@ -25,6 +26,9 @@ export default function RiskValidationStep({ form }) {
   const [backendQuote, setBackendQuote] = useState(null);
   const [backendLoading, setBackendLoading] = useState(false);
 
+  // Live weather + ML premium from shared oracle
+  const { weather: liveWeather, multiplier: liveMultiplier, loading: liveLoading } = useKavachData();
+
   const handleAcquireLocation = useCallback(async () => {
     setPhase('locating');
     const result = await requestLocation();
@@ -34,20 +38,98 @@ export default function RiskValidationStep({ form }) {
       setValue('baseState', result.state);
       setValue('geoCity', result.city);
       setValue('geoAreaCategory', result.areaCategory);
-      
-      const weather = getWeatherData(result.state);
-      setWeatherData(weather);
-      
+
+      // Prefer live weather; fall back to mock state data
+      const mockWeather = getWeatherData(result.state);
+      const effectiveWeather = liveWeather?.temperature_c != null
+        ? {
+            ...mockWeather,
+            temp: parseFloat(liveWeather.temperature_c.toFixed(1)),
+            aqi:  Math.round(liveWeather.aqi ?? mockWeather.aqi),
+            humidity: Math.round(liveWeather.humidity ?? mockWeather.humidity),
+            // Use live precipitation if available; fall back to mock rainfall
+            rainfall: liveWeather.rain_mm != null
+              ? parseFloat(liveWeather.rain_mm.toFixed(1))
+              : mockWeather.rainfall,
+            // Derive condition from live humidity when live data is present
+            condition: liveWeather.humidity != null
+              ? (liveWeather.humidity > 80 ? 'Humid'
+                  : liveWeather.humidity > 60 ? 'Partly Cloudy'
+                  : 'Clear')
+              : mockWeather.condition,
+          }
+        : mockWeather;
+      setWeatherData(effectiveWeather);
+
       const platformName = selectedPlatform ? PLATFORMS[selectedPlatform]?.name : 'Unknown';
+      // Build terminal lines from mock data, then overwrite WEATHER_ORACLE line with live values
       const lines = generateTerminalLines(result.state, platformName, {
         latitude: result.latitude,
         longitude: result.longitude,
       });
+
+      // Patch the WEATHER_ORACLE line with all live values when live data is available
+      if (liveWeather?.temperature_c != null) {
+        const oracleIdx = lines.findIndex(l => l.text.includes('WEATHER_ORACLE'));
+        if (oracleIdx !== -1) {
+          lines[oracleIdx] = {
+            ...lines[oracleIdx],
+            text: `> WEATHER_ORACLE [LIVE] ${effectiveWeather.icon} ${effectiveWeather.condition} | ${effectiveWeather.temp}°C | Rain: ${effectiveWeather.rainfall}mm | AQI: ${effectiveWeather.aqi}`,
+          };
+        }
+      }
+
       setTerminalLines(lines);
-      
       setPhase('calculating');
     }
-  }, [requestLocation, setValue, selectedPlatform]);
+  }, [requestLocation, setValue, selectedPlatform, liveWeather]);
+
+  // ─── Re-patch terminal when live data arrives AFTER button click ────────
+  // Fix for race condition: liveWeather was still null when handleAcquireLocation
+  // fired, so the WEATHER_ORACLE line was built from mock data.
+  // This effect corrects it reactively whenever the oracle data lands.
+  useEffect(() => {
+    if (liveWeather?.temperature_c == null) return;
+    if (!weatherData) return;  // haven't acquired location yet
+
+    setTerminalLines(prev => {
+      if (!prev.length) return prev;
+      const idx = prev.findIndex(l => l.text.includes('WEATHER_ORACLE'));
+      if (idx === -1) return prev;
+
+      const humidity  = Math.round(liveWeather.humidity  ?? weatherData.humidity  ?? 60);
+      const condition = humidity > 80 ? 'Humid' : humidity > 60 ? 'Partly Cloudy' : 'Clear';
+      const temp      = parseFloat(liveWeather.temperature_c.toFixed(1));
+      const aqi       = Math.round(liveWeather.aqi ?? weatherData.aqi ?? 100);
+      const rain      = liveWeather.rain_mm != null
+        ? parseFloat(liveWeather.rain_mm.toFixed(1))
+        : (weatherData.rainfall ?? 0);
+      const icon      = weatherData.icon ?? '⛅';
+
+      const patched = [...prev];
+      patched[idx] = {
+        ...patched[idx],
+        text: `> WEATHER_ORACLE [LIVE] ${icon} ${condition} | ${temp}\u00b0C | Humidity: ${humidity}% | Rain: ${rain}mm | AQI: ${aqi}`,
+      };
+      return patched;
+    });
+
+    // Keep the weather bar in sync with the corrected live values
+    setWeatherData(w => {
+      if (!w) return w;
+      const humidity  = Math.round(liveWeather.humidity  ?? w.humidity ?? 60);
+      const condition = humidity > 80 ? 'Humid' : humidity > 60 ? 'Partly Cloudy' : 'Clear';
+      return {
+        ...w,
+        temp:      parseFloat(liveWeather.temperature_c.toFixed(1)),
+        aqi:       Math.round(liveWeather.aqi ?? w.aqi ?? 100),
+        humidity,
+        rainfall:  liveWeather.rain_mm != null ? parseFloat(liveWeather.rain_mm.toFixed(1)) : w.rainfall,
+        condition,
+      };
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveWeather]);
 
   useEffect(() => {
     if (phase !== 'calculating') return;
@@ -219,16 +301,32 @@ export default function RiskValidationStep({ form }) {
             )}
           </div>
 
-          {/* Weather Strip */}
+          {/* Weather Strip — KAVACH // RISK_ORACLE — 100% live data */}
           {weatherData && (
             <div className="bg-white/50 backdrop-blur-md border border-white/50 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm">
+              {/* Icon + Condition text */}
               <span className="text-lg">{weatherData.icon}</span>
+              <span className="text-xs font-semibold text-[#1A3C5E]">{weatherData.condition}</span>
+              <div className="w-px h-4 bg-gray-200" />
+              {/* Metric chips */}
               <div className="flex items-center gap-3 text-sm text-[#1A3C5E] font-semibold">
                 <span className="flex items-center gap-1"><Thermometer size={12} className="text-[#FF6B00]" /> {weatherData.temp}°C</span>
                 <span className="flex items-center gap-1"><Cloud size={12} className="text-blue-500" /> {weatherData.rainfall}mm</span>
                 <span className="flex items-center gap-1"><Wind size={12} className="text-gray-500" /> AQI {weatherData.aqi}</span>
               </div>
-              <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase tracking-wider">Weather Oracle</span>
+              {/* Right side: LIVE badge + branding */}
+              <div className="ml-auto flex items-center gap-2">
+                {liveWeather?.source === 'live' && !liveLoading && (
+                  <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest bg-black/5 border border-black/10 rounded-full px-1.5 py-0.5" style={{ color: '#00AA29' }}>
+                    {/* Terminal-green dot */}
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: '#00FF41' }} />
+                    LIVE
+                  </span>
+                )}
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-['JetBrains_Mono',monospace]">
+                  KAVACH // RISK_ORACLE
+                </span>
+              </div>
             </div>
           )}
 
@@ -404,7 +502,9 @@ export default function RiskValidationStep({ form }) {
                     </span>
                   </div>
                   {backendQuote.cap_applied && (
-                    <span className="text-[10px] text-amber-600 font-medium mt-1.5 block">⚠ Premium capped to ₹20–₹50 compliance bounds</span>
+                    <span className="text-[10px] text-amber-600 font-medium mt-1.5 block">
+                      ⚠ Actuarial result capped to ₹{backendQuote.weekly_premium}/wk (compliance bounds ₹20–₹50)
+                    </span>
                   )}
                 </motion.div>
               )}

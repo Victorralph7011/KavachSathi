@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  ml_engine:
+    build: ./kavachsathi_ml_engine
+    container_name: kavachsathi_ml_engine
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  api_backend:
+    build: ./backend
+    container_name: kavachsathi_api_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ML_SERVICE_URL=http://ml_engine:5000
+    depends_on:
+      - ml_engine
+    restart: unless-stopped

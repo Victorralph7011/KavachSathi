@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from routers import claims, policies, pricing
 from services.policy_service import reset_platform_stats
+from services.weather_service import get_current_weather
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -82,6 +83,100 @@ app.include_router(pricing.router)
 
 
 # ─────────────────────────────────────────────────────────────────────
+# LIVE WEATHER ENDPOINT
+# ─────────────────────────────────────────────────────────────────────
+
+@app.get("/api/weather/current", tags=["Weather"])
+async def current_weather():
+    """
+    Returns live weather data for Kattankulathur (lat=12.8231, lon=80.0442).
+
+    Fetches from Open-Meteo (temperature, humidity, precipitation) and the Open-Meteo
+    Air Quality API (US AQI). Falls back to sensible defaults if either
+    upstream API is unreachable.
+
+    Response fields:
+      - temperature_c: current air temperature in °C
+      - humidity:      relative humidity in %
+      - aqi:           US AQI index
+      - rain_mm:       current precipitation in mm/hr
+      - source:        "live" | "fallback"
+    """
+    return await get_current_weather()
+
+
+# ─────────────────────────────────────────────────────────────────────
+# LIVE ML PREMIUM ENDPOINT
+# ─────────────────────────────────────────────────────────────────────
+
+@app.get("/api/predict-premium", tags=["Weather"])
+async def predict_premium():
+    """
+    Returns the ML engine's dynamic premium for current Kattankulathur conditions.
+
+    Internally fetches live weather then calls the ML engine, so the frontend
+    only needs a single GET request to get both the price and the risk multiplier.
+
+    Response fields:
+      - dynamic_premium:  float  — ML-calculated weekly premium (₹)
+      - risk_multiplier:  float  — environmental risk factor applied
+      - temperature_c:    float  — weather input used
+      - humidity:         float  — relative humidity %
+      - aqi:              float  — AQI input used
+      - rain_mm:          float  — precipitation in mm/hr
+      - source:           str    — "live" | "fallback"
+    """
+    from services.ml_service import get_dynamic_premium
+    weather = await get_current_weather()
+    ml_result = await get_dynamic_premium(
+        temp=weather["temperature_c"],
+        aqi=weather["aqi"],
+        rain=weather.get("rain_mm", 0.0),
+    )
+    return {
+        "dynamic_premium":  ml_result.get("dynamic_premium", 10.0),
+        "risk_multiplier":  ml_result.get("risk_multiplier", 1.0),
+        "temperature_c":    weather["temperature_c"],
+        "humidity":         weather["humidity"],
+        "aqi":              weather["aqi"],
+        "rain_mm":          weather.get("rain_mm", 0.0),
+        "source":           weather["source"],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────
+# AUTONOMOUS ORACLE STATUS ENDPOINT
+# ─────────────────────────────────────────────────────────────────────
+
+@app.get("/api/oracle/status", tags=["Weather"])
+async def oracle_status(
+    area_category: str = "RURAL",
+    risk_multiplier: float = 1.0,
+):
+    """
+    Runs the Autonomous Parametric Oracle against live Kattankulathur weather.
+
+    Checks live conditions against KavachSathi thresholds:
+      - Rainfall  > 50mm/hr  → RAINFALL_BREACH
+      - Temperature > 40°C   → HEATWAVE_BREACH
+      - AQI > 200            → AQI_BREACH
+
+    Response fields:
+      - monitoring:    bool   — True when no breaches active
+      - breaches:      list   — structured oracle events ready for state machine
+      - weather:       dict   — raw live weather snapshot
+      - checked_at:    str    — ISO timestamp of the check
+      - data_source:   str    — "live" | "fallback"
+    """
+    from services.autonomous_trigger_service import check_oracle
+    return await check_oracle(
+        area_category=area_category,
+        risk_multiplier=risk_multiplier,
+    )
+
+
+
+# ─────────────────────────────────────────────────────────────────────
 # ROOT & HEALTH CHECK
 # ─────────────────────────────────────────────────────────────────────
 
@@ -121,6 +216,6 @@ async def startup():
     print("=" * 60)
     print("  KavachSathi Engine v2.0.0 — ONLINE")
     print("  Parametric Income Protection for India's Gig Workers")
-    print("  Coverage: FOOD_DELIVERY | Billing: WEEKLY | ₹20-₹50")
+    print("  Coverage: FOOD_DELIVERY | Billing: WEEKLY | Rs. 20-Rs. 50")
     print("  Swagger Docs: http://localhost:8000/docs")
     print("=" * 60)

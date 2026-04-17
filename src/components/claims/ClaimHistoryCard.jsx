@@ -173,13 +173,18 @@ export default function ClaimHistoryCard({ claim, areaCategory, isSelected, onSe
 
   // Detect trigger info
   const triggerType = (claim.event || claim.trigger_type || '').toUpperCase();
-  const isRainfall = triggerType.includes('RAIN');
-  const isAQI = triggerType.includes('AQI');
-  const triggerValue = claim.value || claim.trigger_value || (isRainfall ? 65 : isAQI ? 337 : 0);
+  const isRainfall  = triggerType.includes('RAIN');
+  const isAQI       = triggerType.includes('AQI');
+  const isHeatwave  = triggerType.includes('HEAT') || triggerType.includes('TEMP');
+  const triggerValue = claim.value || claim.trigger_value || (
+    isRainfall ? 65 : isAQI ? 337 : isHeatwave ? 42 : 0
+  );
 
-  // Calculate actuarial payout
-  const calculatedPayout = claim.payoutAmount > 0 
-    ? claim.payoutAmount 
+  // Calculate actuarial payout — prefer oracle-supplied payout_amount
+  const calculatedPayout = claim.payoutAmount > 0
+    ? claim.payoutAmount
+    : claim.payout_amount > 0
+    ? claim.payout_amount
     : computePayout(areaCategory || 'URBAN', triggerValue, isRainfall ? 'RAINFALL' : 'AQI');
 
   // Auto-advance state machine
@@ -274,7 +279,7 @@ export default function ClaimHistoryCard({ claim, areaCategory, isSelected, onSe
       <div className="flex items-start justify-between mb-4">
         <div>
           <p className="text-base font-bold text-[#1A1A1A]">
-            {isRainfall ? '🌧️' : isAQI ? '💨' : '⚡'} {claim.event || 'Parametric Event'}
+            {isRainfall ? '🌧️' : isAQI ? '💨' : isHeatwave ? '🌡️' : '⚡'} {claim.event || 'Parametric Event'}
           </p>
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">
             {new Date(claim.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -282,6 +287,11 @@ export default function ClaimHistoryCard({ claim, areaCategory, isSelected, onSe
           {claim.source === 'backend' && (
             <span className="inline-block mt-1.5 bg-[#1A3C5E]/10 text-[#1A3C5E] rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wider">
               BACKEND PIPELINE
+            </span>
+          )}
+          {claim.source === 'oracle' && (
+            <span className="inline-block mt-1.5 bg-emerald-500/10 text-emerald-700 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-wider">
+              ● ORACLE EVENT
             </span>
           )}
         </div>
@@ -351,7 +361,7 @@ export default function ClaimHistoryCard({ claim, areaCategory, isSelected, onSe
           </div>
           <div className="flex justify-between mt-1">
             <span className="text-[9px] text-slate-600">0</span>
-            <span className="text-[9px] text-red-500 font-bold">Threshold: {isRainfall ? '60mm' : '300 AQI'}</span>
+            <span className="text-[9px] text-red-500 font-bold">Threshold: {isRainfall ? '60mm' : isHeatwave ? '40°C' : '300 AQI'}</span>
             <span className="text-[9px] text-slate-600">{isRainfall ? '120mm' : '500'}</span>
           </div>
         </div>

@@ -206,7 +206,7 @@ export async function downloadPolicyCertificate(policy) {
   pdf.setFont('courier', 'bold');
   pdf.setFontSize(16);
   pdf.setTextColor(255, 255, 255);
-  const premium = policy.paymentAmount || policy.estimatedPremium || policy.weeklyPremium || 40;
+  const premium = policy.paymentAmount || policy.estimatedPremium || policy.weeklyPremium || 0;
   pdf.text(`INR ${premium}`, margin + 6, y + 16);
 
   pdf.setFont('helvetica', 'normal');

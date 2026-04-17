@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ShieldCheck, Clock, Route, CheckCircle2, 
   CloudRain, Thermometer, Wind, Activity, Zap,
-  Shield, CreditCard, AlertTriangle 
+  Shield, CreditCard, AlertTriangle, Cpu
 } from 'lucide-react';
 import { calculatePremium, getAreaCategory, getWardId } from '../../utils/riskEngine';
 import { maskAadhaar } from '../../utils/aadhaarMask';
@@ -11,6 +11,7 @@ import { PLATFORMS } from '../../constants/platforms';
 import { launchRazorpayCheckout, formatINR } from '../../../billing-center/razorpay';
 import { issuePolicy, recordPayment, seedMockTriggers } from '../../services/policyService';
 import { enrollPolicy } from '../../../../services/api';
+import { useKavachData } from '../../../../hooks/useKavachData';
 import { Link } from 'react-router-dom';
 
 const TRIGGER_LIST = [
@@ -65,18 +66,28 @@ export default function IssuanceStep({ form, onBind, policyId }) {
   const platformInfo = platform ? PLATFORMS[platform] : null;
   const safeZoneDiscount = safeZone?.isSafe ? safeZone.discount : 0;
 
-  // ── COMPLIANCE LOCK: Weekly-only, use backend premium when available, clamp to ₹20–₹50 ──
-  let rawPremium;
-  if (backendPremium) {
-    rawPremium = backendPremium;
+  // ── ML ENGINE IS THE SINGLE SOURCE OF TRUTH FOR PREMIUM ────────────
+  // Fetch live price directly from the ML oracle (same hook as dashboard).
+  // Priority: ML engine → actuarial backendPremium → local riskGrade formula
+  const { premium: mlPremium, multiplier: mlMultiplier, loading: mlLoading } = useKavachData();
+
+  // finalPremium: use ML price when available (no ₹20-₹50 floor applied to ML output).
+  // The compliance cap (₹20-₹50) only applies to the legacy actuarial path.
+  let finalPremium;
+  let priceSource;
+  if (mlPremium != null) {
+    finalPremium = parseFloat(mlPremium.toFixed(2));  // ML price — e.g. ₹14.50
+    priceSource = 'ML_ENGINE';
+  } else if (backendPremium) {
+    finalPremium = Math.max(20, Math.min(50, backendPremium));  // actuarial path
+    priceSource = 'ACTUARIAL';
   } else {
-    rawPremium = riskGrade ? calculatePremium(riskGrade, 'weekly', safeZoneDiscount) : 0;
+    const localEstimate = riskGrade ? calculatePremium(riskGrade, 'weekly', safeZoneDiscount) : 0;
+    finalPremium = Math.max(20, Math.min(50, localEstimate));  // local fallback
+    priceSource = 'LOCAL';
   }
 
-  let finalPremium = rawPremium;
-  let capApplied = false;
-  finalPremium = Math.max(20, Math.min(50, rawPremium));
-  capApplied = finalPremium !== rawPremium;
+  const capApplied = priceSource !== 'ML_ENGINE' && finalPremium !== (backendPremium ?? 0);
   const basePremium = riskGrade ? calculatePremium(riskGrade, 'weekly', 0) : 0;
 
   const addLog = (type, message) => {
@@ -323,34 +334,88 @@ export default function IssuanceStep({ form, onBind, policyId }) {
           <div
             className="backdrop-blur-md border-2 rounded-2xl p-5 text-left border-[#1A3C5E] bg-white/50 shadow-sm relative"
           >
-            <div className="absolute top-3 right-3">
+            {/* Badge row: WEEKLY ONLY + Calculated by AI */}
+            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+              {priceSource === 'ML_ENGINE' && !mlLoading && (
+                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-1.5 py-0.5">
+                  <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                  Calculated by AI
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest">
                 <CheckCircle2 size={10} /> Weekly Only
               </span>
             </div>
+
             <Clock size={32} className="text-[#1A3C5E] mb-2" />
             <p className="font-bold text-[#1A1A1A]">Weekly Plan</p>
-            <p className="text-[#E85D04] font-semibold text-sm mt-1">
-              {formatINR(calculatePremium(riskGrade, 'weekly', safeZoneDiscount))}/week
-            </p>
+
+            {/* Price — driven by ML engine, not the local actuarial formula */}
+            {mlLoading ? (
+              <div className="h-5 w-24 bg-gray-200/60 animate-pulse rounded mt-1" />
+            ) : (
+              <p className="font-semibold text-sm mt-1" style={{ color: '#E67E22' }}>
+                ₹{finalPremium.toFixed(2)}/week
+              </p>
+            )}
+
+            {/* Dynamic footnote */}
             <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
-              Loss of Income coverage · Food Delivery Persona · Capped ₹20–₹50
+              Loss of Income coverage · Food Delivery Persona
+              {' · '}
+              {priceSource === 'ML_ENGINE' && !mlLoading
+                ? `ML Oracle: ₹10.00 base × ${mlMultiplier?.toFixed(2) ?? '1.00'} risk factor`
+                : 'Actuarial cap ₹20–₹50'
+              }
             </p>
           </div>
         </div>
       </motion.div>
 
-      {/* Premium Display */}
+      {/* Premium Display — ML Engine is the source of truth */}
       <motion.div
         className="bg-white/50 backdrop-blur-md rounded-2xl p-6 text-center border border-white/50 shadow-sm"
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.3 }}
       >
-        <span className="text-xs text-gray-400 uppercase tracking-wider block">Estimated Premium</span>
-        <div className="mt-2 flex items-baseline justify-center gap-1">
-          <span className="font-['JetBrains_Mono',monospace] text-5xl font-bold text-[#1A3C5E]">₹{finalPremium}</span>
-          <span className="text-lg text-gray-400">/wk</span>
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <span className="text-xs text-gray-400 uppercase tracking-wider">Estimated Premium</span>
+          {priceSource === 'ML_ENGINE' && (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Calculated by AI
+            </span>
+          )}
+          {priceSource === 'ACTUARIAL' && (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-blue-600 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5">
+              Actuarial Engine
+            </span>
+          )}
         </div>
+
+        {mlLoading ? (
+          <div className="mt-3 flex flex-col items-center gap-2">
+            <div className="h-12 w-32 bg-gray-200/60 animate-pulse rounded-xl" />
+            <div className="h-3 w-20 bg-gray-200/40 animate-pulse rounded" />
+          </div>
+        ) : (
+          <>
+            <div className="mt-2 flex items-baseline justify-center gap-1">
+              <span className="font-['JetBrains_Mono',monospace] text-5xl font-bold text-[#1A3C5E]">
+                ₹{finalPremium.toFixed(2)}
+              </span>
+              <span className="text-lg text-gray-400">/wk</span>
+            </div>
+            {mlMultiplier != null && priceSource === 'ML_ENGINE' && (
+              <div className="flex items-center justify-center gap-1.5 mt-1.5">
+                <Cpu size={11} className="text-emerald-500" />
+                <span className="text-[10px] text-emerald-600 font-semibold">
+                  Risk ×{mlMultiplier.toFixed(4)} · Base ₹10.00 × {mlMultiplier.toFixed(4)} = ₹{finalPremium.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </>
+        )}
 
         {safeZoneDiscount > 0 && termType === 'weekly' && (
           <motion.div
@@ -370,7 +435,7 @@ export default function IssuanceStep({ form, onBind, policyId }) {
             <div className="h-px bg-[#BFDBFE] my-2" />
             <div className="flex justify-between font-semibold text-[#1A3C5E]">
               <span>Final Premium</span>
-              <span>{formatINR(finalPremium)}/wk</span>
+              <span>₹{finalPremium.toFixed(2)}/wk</span>
             </div>
           </motion.div>
         )}
@@ -411,19 +476,28 @@ export default function IssuanceStep({ form, onBind, policyId }) {
               key="bind"
               type="button"
               onClick={handleBind}
-              disabled={!consentGiven}
-              whileHover={consentGiven ? { scale: 1.01 } : {}}
-              whileTap={consentGiven ? { scale: 0.99 } : {}}
+              disabled={!consentGiven || mlLoading || finalPremium <= 0}
+              whileHover={consentGiven && !mlLoading ? { scale: 1.01 } : {}}
+              whileTap={consentGiven && !mlLoading ? { scale: 0.99 } : {}}
               exit={{ opacity: 0, scale: 0.95 }}
               className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2
-                ${consentGiven
+                ${consentGiven && !mlLoading && finalPremium > 0
                   ? 'bg-[#E85D04] hover:bg-[#D14F00] text-white'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 }
               `}
             >
-              <CreditCard size={18} />
-              💳 Bind Policy — {formatINR(finalPremium)}
+              {mlLoading ? (
+                <>
+                  <motion.div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
+                  Fetching live price...
+                </>
+              ) : (
+                <>
+                  <CreditCard size={18} />
+                  💳 Bind Policy — ₹{finalPremium.toFixed(2)}
+                </>
+              )}
             </motion.button>
           )}
 

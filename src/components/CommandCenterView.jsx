@@ -1,10 +1,14 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { CloudRain, Thermometer, Download, Zap, Building2, Trees } from 'lucide-react';
+import { Thermometer, Download, Zap, Building2, Trees, Wind, Cpu, CloudRain } from 'lucide-react';
 import DashSidebar from './DashSidebar';
 import { useCenterData } from '../hooks/useCenterData';
 import { usePolicy } from '../contexts/PolicyContext';
 import { downloadPolicyCertificate } from '../utils/generateCertificate';
+import { useKavachData } from '../hooks/useKavachData';
+
+const BACKEND = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
 /* ─── Risk Ring ─── */
 function RiskRing({ score }) {
@@ -62,6 +66,9 @@ export default function CommandCenterView({ policy }) {
   const riskScore = Math.round((policy?.riskScore || 0.82) * 100);
   const areaCategory = policyCtx?.areaCategory || policy?.areaCategory || 'URBAN';
 
+  // ── Live data via shared hook (weather + ML premium) ────────────
+  const { weather, premium, multiplier, loading: weatherLoading } = useKavachData();
+
   return (
     <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
       {/* Background Environment */}
@@ -107,35 +114,110 @@ export default function CommandCenterView({ policy }) {
 
           {/* Active Radar - Live Monitoring Grid */}
           <div className="mb-8">
-            <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400 mb-4 block">Active Radar</span>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-gray-400">Active Radar</span>
+              {!weatherLoading && weather?.source === 'live' && (
+                <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5">
+
+               {/* Temperature */}
                <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
-                  <div className="w-12 h-12 rounded-full bg-blue-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-                    <CloudRain className="w-5 h-5 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rainfall Level</p>
-                    <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">14.2<span className="text-sm text-gray-400 ml-1">mm</span></p>
-                  </div>
-               </motion.div>
-               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0.1 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
                   <div className="w-12 h-12 rounded-full bg-orange-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.3)]">
                     <Thermometer className="w-5 h-5 text-orange-500" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Heat Index</p>
-                    <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">38.5<span className="text-sm text-gray-400 ml-1">°C</span></p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Temperature</p>
+                    {weatherLoading ? (
+                      <div className="h-7 w-20 bg-gray-200/60 animate-pulse rounded mt-1" />
+                    ) : (
+                      <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">
+                        {weather?.temperature_c?.toFixed(1) ?? '—'}<span className="text-sm text-gray-400 ml-1">°C</span>
+                      </p>
+                    )}
                   </div>
                </motion.div>
+
+               {/* Humidity */}
+               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0.1 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-blue-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                    <Wind className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Humidity</p>
+                    {weatherLoading ? (
+                      <div className="h-7 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                    ) : (
+                      <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">
+                        {weather?.humidity?.toFixed(0) ?? '—'}<span className="text-sm text-gray-400 ml-1">%</span>
+                      </p>
+                    )}
+                  </div>
+               </motion.div>
+
+               {/* Rainfall */}
+               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0.15 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-blue-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                    <CloudRain className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Rainfall</p>
+                    {weatherLoading ? (
+                      <div className="h-7 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                    ) : (
+                      <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">
+                        {weather?.rain_mm?.toFixed(1) ?? '0.0'}<span className="text-sm text-gray-400 ml-1">mm</span>
+                      </p>
+                    )}
+                    {!weatherLoading && (weather?.rain_mm ?? 0) > 60 && (
+                      <p className="text-[9px] font-bold text-red-500 uppercase tracking-wider mt-0.5">⚠ TRIGGER THRESHOLD</p>
+                    )}
+                  </div>
+               </motion.div>
+
+               {/* AQI */}
                <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0.2 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
                   <div className="w-12 h-12 rounded-full bg-teal-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(20,184,166,0.3)]">
                     <Zap className="w-5 h-5 text-teal-600" />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AQI Core</p>
-                    <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">142<span className="text-sm text-gray-400 ml-1">idx</span></p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AQI (US)</p>
+                    {weatherLoading ? (
+                      <div className="h-7 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                    ) : (
+                      <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">
+                        {weather?.aqi?.toFixed(0) ?? '—'}<span className="text-sm text-gray-400 ml-1">idx</span>
+                      </p>
+                    )}
                   </div>
                </motion.div>
+
+               {/* ML Premium — driven by live weather + Random Forest model */}
+               <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration: 0.5, delay: 0.3 }} className="bg-white/20 backdrop-blur-xl border border-white/30 p-5 rounded-2xl flex items-center gap-4 shadow-sm relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-emerald-50/50 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    <Cpu className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ML Premium</p>
+                      <span className="text-[8px] font-bold uppercase text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-1.5 py-0.5">AI</span>
+                    </div>
+                    {weatherLoading ? (
+                      <div className="h-7 w-20 bg-gray-200/60 animate-pulse rounded mt-1" />
+                    ) : (
+                      <p className="text-2xl font-mono font-semibold text-[#111] mt-0.5">
+                        {premium != null ? `₹${premium.toFixed(2)}` : '—'}<span className="text-sm text-gray-400 ml-1">/wk</span>
+                      </p>
+                    )}
+                    {multiplier != null && !weatherLoading && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">Risk ×{multiplier.toFixed(2)}</p>
+                    )}
+                  </div>
+               </motion.div>
+
             </div>
           </div>
 
@@ -206,7 +288,7 @@ export default function CommandCenterView({ policy }) {
                           </p>
                         </div>
                         <div className="w-8 h-8 rounded-full bg-white/40 flex items-center justify-center shrink-0 border border-white/30">
-                          {i % 2 === 0 ? <CloudRain size={12} className="text-[#111]" /> : <Thermometer size={12} className="text-[#111]" />}
+                          {i % 2 === 0 ? <Zap size={12} className="text-[#111]" /> : <Thermometer size={12} className="text-[#111]" />}
                         </div>
                         <div className="flex-1">
                           <p className="text-xs text-[#1A1A1A] font-bold">{t.event || 'Weather Event'}</p>

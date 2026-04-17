@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { FileText, Download, Shield } from 'lucide-react';
+import { FileText, Download, Shield, Cpu } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCenterData } from '../../hooks/useCenterData';
+import { useKavachData } from '../../hooks/useKavachData';
 import DashSidebar from '../DashSidebar';
 import { downloadPolicyCertificate } from '../../utils/generateCertificate';
 
@@ -13,6 +14,21 @@ function gradeStyle(g) {
 
 export default function PolicySummary() {
   const { policy, isLoading } = useCenterData();
+  const { premium, multiplier, loading: mlLoading, weather } = useKavachData();
+
+  // Risk score derived from ML multiplier:
+  // multiplier 1.0 = 0.00 (no extra risk above base)
+  // multiplier 1.45 = 0.45 (45% above base rate)
+  // This is the clearest representation of what the ML engine computed.
+  const displayRiskScore = multiplier != null
+    ? (multiplier - 1).toFixed(4)
+    : policy?.riskScore?.toFixed(4) ?? '—';
+
+  const displayPremium = premium != null
+    ? `₹${premium.toFixed(2)}/wk`
+    : policy?.estimatedPremium != null
+    ? `₹${policy.estimatedPremium.toFixed(2)}/wk`
+    : '₹—/wk';
 
   if (isLoading) {
     return (
@@ -113,6 +129,99 @@ export default function PolicySummary() {
                 <p className="text-sm font-semibold text-[#1A1A1A] mt-1">{value}</p>
               </div>
             ))}
+          </div>
+
+          {/* Live Oracle Band */}
+          <div className="mt-6 pt-6 border-t border-white/20">
+            <div className="flex items-center gap-2 mb-4">
+              <Cpu size={14} className="text-emerald-600" />
+              <span className="text-xs font-bold text-[#1A3C5E] uppercase tracking-widest">Live Actuarial Oracle</span>
+              {!mlLoading && (
+                <span className="ml-1 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-2 py-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* ML Premium */}
+              <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                <p className="section-label mb-1">ML Premium</p>
+                {mlLoading ? (
+                  <div className="h-5 w-24 bg-gray-200/60 animate-pulse rounded mt-1" />
+                ) : (
+                  <p className="font-['JetBrains_Mono',monospace] text-base font-bold text-[#1A3C5E]">{displayPremium}</p>
+                )}
+              </div>
+
+              {/* Risk Score (multiplier - 1) */}
+              <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                <p className="section-label mb-1">Risk Score</p>
+                {mlLoading ? (
+                  <div className="h-5 w-20 bg-gray-200/60 animate-pulse rounded mt-1" />
+                ) : (
+                  <>
+                    <p className="font-['JetBrains_Mono',monospace] text-base font-bold text-[#E85D04]">{displayRiskScore}</p>
+                    {multiplier != null && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">×{multiplier.toFixed(4)} multiplier</p>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Temperature */}
+              <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                <p className="section-label mb-1">Temperature</p>
+                {mlLoading ? (
+                  <div className="h-5 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                ) : (
+                  <p className="font-['JetBrains_Mono',monospace] text-base font-bold text-[#1A3C5E]">
+                    {weather?.temperature_c != null ? `${weather.temperature_c.toFixed(1)}\u00b0C` : '—'}
+                  </p>
+                )}
+              </div>
+
+              {/* Humidity */}
+              <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                <p className="section-label mb-1">Humidity</p>
+                {mlLoading ? (
+                  <div className="h-5 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                ) : (
+                  <p className="font-['JetBrains_Mono',monospace] text-base font-bold text-[#1A3C5E]">
+                    {weather?.humidity != null ? `${Math.round(weather.humidity)}%` : '—'}
+                  </p>
+                )}
+              </div>
+
+              {/* AQI */}
+              <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                <p className="section-label mb-1">AQI (US)</p>
+                {mlLoading ? (
+                  <div className="h-5 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                ) : (
+                  <p className="font-['JetBrains_Mono',monospace] text-base font-bold text-[#0F7B6C]">
+                    {weather?.aqi != null ? Math.round(weather.aqi) : '—'}
+                  </p>
+                )}
+              </div>
+
+              {/* Rainfall */}
+              <div className="bg-white/30 backdrop-blur-sm rounded-xl p-4 border border-white/30">
+                <p className="section-label mb-1">Rainfall</p>
+                {mlLoading ? (
+                  <div className="h-5 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                ) : (
+                  <>
+                    <p className="font-['JetBrains_Mono',monospace] text-base font-bold text-blue-600">
+                      {weather?.rain_mm != null ? `${weather.rain_mm.toFixed(1)}mm` : '0.0mm'}
+                    </p>
+                    {(weather?.rain_mm ?? 0) > 60 && (
+                      <p className="text-[9px] font-bold text-red-500 uppercase tracking-wider mt-0.5">⚠ Trigger
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Back Link */}

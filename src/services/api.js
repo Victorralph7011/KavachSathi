@@ -71,6 +71,23 @@ export async function fetchPremiumBounds() {
   return request('GET', '/pricing/bounds');
 }
 
+/**
+ * Fetch live weather data for Kattankulathur from the backend proxy.
+ * Returns: { temperature_c, humidity, aqi, source }
+ */
+export async function fetchWeather() {
+  return request('GET', '/api/weather/current');
+}
+
+/**
+ * Fetch a dynamic premium from the ML engine via the backend.
+ * The backend fetches live weather internally — no inputs needed from frontend.
+ * Returns: { dynamic_premium, risk_multiplier, temperature_c, aqi, source }
+ */
+export async function fetchDynamicPremium() {
+  return request('GET', '/api/predict-premium');
+}
+
 // ─── Policy Enrollment ────────────────────────────────────────
 
 /**

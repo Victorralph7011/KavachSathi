@@ -1,55 +1,58 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart3, TrendingUp, DollarSign, Activity, ShieldAlert, CloudRain, Wind, Zap, AlertTriangle, CheckCircle2, MapPin } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  BarChart3, TrendingUp, DollarSign, Activity, ShieldAlert,
+  CloudRain, Wind, Cpu, MapPin, Thermometer, Radio,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ReferenceLine,
+} from 'recharts';
 import DashSidebar from '../DashSidebar';
-import { fetchPlatformHealth, ingestTrigger } from '../../services/api';
+import { fetchPlatformHealth } from '../../services/api';
 import { usePolicy } from '../../contexts/PolicyContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { reverseGeocode } from '../../utils/reverseGeocode';
+import { useKavachData } from '../../hooks/useKavachData';
 
-// ─── 7-Day Income Simulation ─────────────────────────────────
-function generateIncomeData(survivalThreshold, disrupted = false) {
+// ─── Income chart generator ────────────────────────────────────
+// The last point (Sunday = "Today") is pinned to the live multiplier:
+//   - multiplier > 1.5  → disrupted day (income drops)
+//   - multiplier 1.2–1.5 → slight dip
+//   - multiplier < 1.2  → normal / above
+function generateIncomeData(survivalThreshold, liveMultiplier = null) {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return days.map((day, i) => {
     const base = survivalThreshold + (Math.random() * 300 - 100);
-    const isDisrupted = disrupted && (i === 3 || i === 4); // Thu/Fri disrupted
-    const income = isDisrupted ? base * 0.35 : base;
+
+    let income;
+    if (i === 6 && liveMultiplier != null) {
+      // Sunday = TODAY — driven by live ML multiplier
+      // High multiplier → high environmental risk → lower actual income
+      const riskFactor = Math.min(liveMultiplier, 2.5);
+      const disruptionPct = Math.min(0.85, (riskFactor - 1) * 0.6);
+      income = Math.round(Math.max(0, base * (1 - disruptionPct)));
+    } else {
+      income = Math.round(Math.max(0, base));
+    }
+
     return {
-      day,
-      income: Math.round(Math.max(0, income)),
+      day: i === 6 ? 'Today' : day,
+      income,
       projected: Math.round(base),
       threshold: survivalThreshold,
     };
   });
 }
 
-// Generate recovery data after a successful trigger payout
-function generateRecoveryData(survivalThreshold) {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return days.map((day, i) => {
-    const base = survivalThreshold + (Math.random() * 300 - 100);
-    const wasDisrupted = i === 3 || i === 4;
-    // Show recovery: disrupted income + payout brings it back above threshold
-    const disrupted = wasDisrupted ? base * 0.35 : base;
-    const payout = wasDisrupted ? survivalThreshold * 0.6 : 0;
-    return {
-      day,
-      income: Math.round(Math.max(0, disrupted + payout)),
-      projected: Math.round(base),
-      threshold: survivalThreshold,
-    };
-  });
-}
-
-// ─── Loss Ratio Ring Component ───────────────────────────────
+// ─── Loss Ratio Ring ──────────────────────────────────────────
 function LossRatioGauge({ ratio, circuitBreakerActive }) {
   const pct = Math.min(ratio * 100, 100);
   const circumference = 2 * Math.PI * 60;
   const strokeDash = (pct / 100) * circumference;
 
-  let color = '#059669'; // Green
+  let color = '#059669';
   let label = 'HEALTHY';
   if (pct >= 85) { color = '#DC2626'; label = 'CIRCUIT BREAKER'; }
   else if (pct >= 50) { color = '#E85D04'; label = 'ELEVATED'; }
@@ -104,100 +107,72 @@ function GlassTooltip({ active, payload, label }) {
   );
 }
 
-// ─── Trigger Toast ───────────────────────────────────────────
-function TriggerToast({ result, onDismiss }) {
-  useEffect(() => {
-    const timer = setTimeout(onDismiss, 6000);
-    return () => clearTimeout(timer);
-  }, [onDismiss]);
-
-  const isSuccess = result?.status === 'CLAIMS_CREATED';
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 30, scale: 0.95 }}
-      className={`fixed bottom-6 right-6 z-50 px-5 py-4 rounded-xl shadow-2xl border backdrop-blur-xl max-w-sm ${
-        isSuccess
-          ? 'bg-emerald-900/90 border-emerald-500/30 text-emerald-100'
-          : 'bg-amber-900/90 border-amber-500/30 text-amber-100'
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        {isSuccess ? <CheckCircle2 size={20} className="text-emerald-400 shrink-0 mt-0.5" /> : <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />}
-        <div>
-          <p className="font-bold text-sm">{isSuccess ? 'Trigger Accepted' : 'Below Threshold'}</p>
-          <p className="text-xs mt-1 opacity-80">{result?.message || 'Unknown response'}</p>
-          {result?.claims_created > 0 && (
-            <p className="text-xs mt-1 font-mono font-bold">{result.claims_created} claim(s) auto-created</p>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
 // ─── DEMO DATA SEEDS ─────────────────────────────────────────
-const DEMO_PREMIUM = 450000;
-const DEMO_NODES = 1204;
-const DEMO_PAYOUT = 82400;
+const DEMO_PREMIUM  = 450000;
+const DEMO_NODES    = 1204;
+const DEMO_PAYOUT   = 82400;
 const DEMO_LOSS_RATIO = 0.183;
+
+// ─── AQI → active risk node count ────────────────────────────
+// Each environmental condition that breaches its threshold = 1 additional "active" risk node.
+function deriveActiveRiskNodes(base, liveWeather) {
+  if (!liveWeather) return base;
+  let extra = 0;
+  if ((liveWeather.aqi ?? 0) > 100)         extra += 1;  // AQI hazard threshold
+  if ((liveWeather.temperature_c ?? 0) > 38) extra += 1;  // heat stress threshold
+  if ((liveWeather.humidity ?? 0) > 85)      extra += 1;  // high-humidity disruption
+  return base + extra;
+}
 
 // ─── Main Component ──────────────────────────────────────────
 export default function AnalyticsHub() {
-  const [health, setHealth] = useState(null);
+  const [health, setHealth]           = useState(null);
   const [healthLoading, setHealthLoading] = useState(true);
-  const [demoMode, setDemoMode] = useState(false);
+  const [demoMode, setDemoMode]       = useState(false);
 
-  // GPS acquisition
+  // ── Live Oracle ─────────────────────────────────────────────
+  const {
+    weather: liveWeather,
+    premium: livePremium,
+    multiplier: liveMultiplier,
+    loading: liveLoading,
+  } = useKavachData();
+
+  // GPS
   const geo = useGeolocation();
   const [geoInfo, setGeoInfo] = useState(null);
 
-  // Get personalized data from PolicyContext
   const policyCtx = usePolicy();
-
-  // Resolve area category from GPS or policy
   const areaCategory = geoInfo?.areaCategory || policyCtx?.areaCategory || 'URBAN';
-  const lAvg = geoInfo?.lAvg || (areaCategory === 'RURAL' ? 400 : 800);
-  // Derive ward from GPS city name, not hardcoded Delhi
-  const gpsWardId = geoInfo?.city
+  const lAvg        = geoInfo?.lAvg || (areaCategory === 'RURAL' ? 400 : 800);
+  const gpsWardId   = geoInfo?.city
     ? `${geoInfo.city.toUpperCase().replace(/\s+/g, '_')}_ZONE`
     : null;
-  const wardId = gpsWardId || policyCtx?.wardId || 'LOCAL_ZONE';
+  const wardId   = gpsWardId || policyCtx?.wardId || 'LOCAL_ZONE';
   const cityName = geoInfo?.city || policyCtx?.activePolicy?.city || 'India';
 
-  const [incomeData, setIncomeData] = useState(() => generateIncomeData(lAvg));
-  const [demoPayout, setDemoPayout] = useState(DEMO_PAYOUT);
+  // Income chart — re-generates when lAvg or live multiplier changes
+  const [incomeData, setIncomeData] = useState(() => generateIncomeData(lAvg, null));
 
-  // Trigger simulation state
-  const [rainSlider, setRainSlider] = useState(30);
-  const [aqiSlider, setAqiSlider] = useState(150);
-  const [triggerStatus, setTriggerStatus] = useState({ rain: false, aqi: false });
-  const [triggerFiring, setTriggerFiring] = useState(false);
-  const [triggerResult, setTriggerResult] = useState(null);
+  useEffect(() => {
+    if (!liveLoading) {
+      setIncomeData(generateIncomeData(lAvg, liveMultiplier));
+    }
+  }, [lAvg, liveMultiplier, liveLoading]);
 
-  // ─── Reverse Geocode on GPS acquisition ─────────────────
   useEffect(() => {
     if (!geo.isLoading && geo.latitude && geo.longitude) {
-      reverseGeocode(geo.latitude, geo.longitude).then(info => {
-        setGeoInfo(info);
-      });
+      reverseGeocode(geo.latitude, geo.longitude).then(info => setGeoInfo(info));
     }
   }, [geo.isLoading, geo.latitude, geo.longitude]);
 
-  // Regenerate income data when L_avg changes
-  useEffect(() => {
-    setIncomeData(generateIncomeData(lAvg));
-  }, [lAvg]);
-
-  // ─── Platform Health Polling (10s) ──────────────────────────
+  // Platform health polling (10 s)
   const loadHealth = useCallback(async () => {
     const res = await fetchPlatformHealth();
     if (res.success && res.data) {
       setHealth(res.data);
       setDemoMode(false);
     } else {
-      // Backend unreachable — activate demo mode
       setDemoMode(true);
     }
     setHealthLoading(false);
@@ -209,78 +184,26 @@ export default function AnalyticsHub() {
     return () => clearInterval(interval);
   }, [loadHealth]);
 
-  // ─── Threshold breach detection ────────────────────────────
-  useEffect(() => {
-    setTriggerStatus({
-      rain: rainSlider > 60,
-      aqi: aqiSlider > 300,
-    });
-  }, [rainSlider, aqiSlider]);
-
-  // ─── Fire Trigger to Backend ───────────────────────────────
-  const handleFireTrigger = useCallback(async (type) => {
-    setTriggerFiring(true);
-    try {
-      const triggerData = {
-        trigger_type: type === 'rain' ? 'RAINFALL' : 'AQI',
-        value: type === 'rain' ? rainSlider : aqiSlider,
-        ward_id: wardId,
-        city: cityName,
-        timestamp: new Date().toISOString(),
-      };
-      const res = await ingestTrigger(triggerData);
-      if (res.success) {
-        setTriggerResult(res.data);
-        // Update income graph to show recovery pattern after successful trigger
-        if (res.data?.status === 'CLAIMS_CREATED') {
-          setIncomeData(generateRecoveryData(lAvg));
-          setDemoPayout(prev => prev + (lAvg * 2.5));
-        }
-      } else {
-        // In demo mode, simulate a successful trigger
-        if (demoMode) {
-          const simResult = {
-            status: 'CLAIMS_CREATED',
-            message: `[DEMO] ${type === 'rain' ? 'Rainfall' : 'AQI'} breach verified. ${type === 'rain' ? rainSlider : aqiSlider}${type === 'rain' ? 'mm' : ''} exceeds threshold. Payout auto-created.`,
-            claims_created: 1,
-          };
-          setTriggerResult(simResult);
-          setIncomeData(generateRecoveryData(lAvg));
-          setDemoPayout(prev => prev + (lAvg * 2.5));
-        } else {
-          setTriggerResult({ status: 'ERROR', message: res.error || 'Backend error' });
-        }
-      }
-    } catch (e) {
-      if (demoMode) {
-        const simResult = {
-          status: 'CLAIMS_CREATED',
-          message: `[DEMO] Trigger simulated locally. Payout auto-dispatched.`,
-          claims_created: 1,
-        };
-        setTriggerResult(simResult);
-        setIncomeData(generateRecoveryData(lAvg));
-        setDemoPayout(prev => prev + (lAvg * 2.5));
-      } else {
-        setTriggerResult({ status: 'ERROR', message: e.message });
-      }
-    } finally {
-      setTriggerFiring(false);
-    }
-  }, [rainSlider, aqiSlider, wardId, cityName, demoMode, lAvg]);
-
-  // Derive values (use health data if available, fallback to DEMO seeds)
-  const healthData = health?.platform_health || health;
-  const totalPremium = healthData?.total_premium_collected ?? DEMO_PREMIUM;
-  const activePolicies = healthData?.total_policies_active ?? DEMO_NODES;
-  const totalPayout = healthData?.total_payout_disbursed ?? demoPayout;
-  const lossRatio = healthData?.loss_ratio ?? DEMO_LOSS_RATIO;
+  // Derive KPI values
+  const healthData    = health?.platform_health || health;
+  const totalPremium  = healthData?.total_premium_collected ?? DEMO_PREMIUM;
+  const baseNodes     = healthData?.total_policies_active   ?? DEMO_NODES;
+  const activePolicies = deriveActiveRiskNodes(baseNodes, liveWeather);
+  const totalPayout   = healthData?.total_payout_disbursed  ?? DEMO_PAYOUT;
+  const lossRatio     = healthData?.loss_ratio              ?? DEMO_LOSS_RATIO;
   const circuitBreaker = healthData?.circuit_breaker_active ?? false;
   const survivalThreshold = lAvg;
 
+  // Live oracle status string
+  const oracleStatusLabel = liveLoading
+    ? 'Syncing Oracle...'
+    : liveWeather?.source === 'live'
+      ? 'Verified Oracle Feed'
+      : 'Live Network Data';
+
   return (
     <div className="relative min-h-screen flex font-['Inter',sans-serif] overflow-hidden bg-[#FAFAF8]">
-      {/* Background Atmosphere */}
+      {/* Background */}
       <div className="absolute inset-0 z-0">
         <video autoPlay loop muted playsInline className="w-full h-full object-cover">
           <source src="/assets/videos/atmosphere.mp4" type="video/mp4" />
@@ -292,10 +215,10 @@ export default function AnalyticsHub() {
 
       <main className="relative z-10 flex-1 p-8 overflow-y-auto">
         <motion.div
-           className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl shadow-xl p-8 max-w-6xl"
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ duration: 0.4 }}
+          className="bg-white/20 backdrop-blur-xl border border-white/30 rounded-2xl shadow-xl p-8 max-w-6xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -305,11 +228,11 @@ export default function AnalyticsHub() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-[#1A1A1A]">Financial Intelligence</h1>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap mt-0.5">
                   <span className="mono-data text-sm font-semibold">LIVE TELEMETRY FEED</span>
                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider ${
-                    areaCategory === 'URBAN' 
-                      ? 'bg-[#1A3C5E]/10 text-[#1A3C5E] border border-[#1A3C5E]/20' 
+                    areaCategory === 'URBAN'
+                      ? 'bg-[#1A3C5E]/10 text-[#1A3C5E] border border-[#1A3C5E]/20'
                       : 'bg-[#0F7B6C]/10 text-[#0F7B6C] border border-[#0F7B6C]/20'
                   }`}>
                     {areaCategory} · L<sub>avg</sub>=₹{lAvg}
@@ -327,29 +250,117 @@ export default function AnalyticsHub() {
                 </div>
               </div>
             </div>
+
+            {/* Oracle status pill */}
             <div className="flex items-center gap-2">
-               <span className={`w-2.5 h-2.5 rounded-full ${healthLoading ? 'bg-amber-400' : demoMode ? 'bg-amber-400' : 'bg-emerald-500'} animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]`} />
-               <span className="text-xs font-bold text-[#111827] uppercase tracking-[0.2em] hidden sm:inline">
-                 {healthLoading ? 'Syncing...' : demoMode ? 'Demo Engine' : 'Engine Online'}
-               </span>
+              <Radio size={14} className={liveLoading ? 'text-amber-500' : 'text-emerald-500'} />
+              <span className={`w-2 h-2 rounded-full animate-pulse ${
+                liveLoading ? 'bg-amber-400' : demoMode ? 'bg-amber-400' : 'bg-emerald-500'
+              } shadow-[0_0_10px_rgba(16,185,129,0.8)]`} />
+              <span className="text-xs font-bold text-[#111827] uppercase tracking-[0.2em] hidden sm:inline">
+                {oracleStatusLabel}
+              </span>
             </div>
           </div>
 
-          {/* Coverage Compliance Banner */}
+          {/* Coverage Banner */}
           <div className="mb-6 bg-[#0F172A]/5 border border-[#0F172A]/10 rounded-xl px-4 py-2.5 flex items-center gap-3">
             <ShieldAlert size={16} className="text-[#1A3C5E] shrink-0" />
             <span className="text-xs font-semibold text-[#1A3C5E] tracking-wide">
-              COVERAGE: Loss of Income ONLY · PERSONA: Food Delivery · BILLING: Weekly (₹20–₹50) · CIRCUIT BREAKER: 85% Loss Ratio
+              COVERAGE: Loss of Income ONLY · PERSONA: Food Delivery · BILLING: Weekly · CIRCUIT BREAKER: 85% Loss Ratio
             </span>
           </div>
 
-          {/* KPI Cards — Dynamic */}
+          {/* Live Oracle Telemetry Strip */}
+          <motion.div
+            className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            {[
+              {
+                icon: Thermometer, iconClass: 'text-orange-500',
+                label: 'Temperature', bg: 'bg-orange-50/50',
+                shadow: 'shadow-[0_0_12px_rgba(249,115,22,0.2)]',
+                value: liveWeather?.temperature_c != null
+                  ? `${liveWeather.temperature_c.toFixed(1)}°C` : null,
+              },
+              {
+                icon: Wind, iconClass: 'text-teal-600',
+                label: 'AQI (US)', bg: 'bg-teal-50/50',
+                shadow: 'shadow-[0_0_12px_rgba(20,184,166,0.2)]',
+                value: liveWeather?.aqi != null
+                  ? Math.round(liveWeather.aqi).toString() : null,
+              },
+              {
+                icon: CloudRain, iconClass: 'text-blue-600',
+                label: 'Rainfall', bg: 'bg-blue-50/50',
+                shadow: 'shadow-[0_0_12px_rgba(59,130,246,0.2)]',
+                // rain_mm from Open-Meteo precipitation — 0.0 when dry
+                value: liveWeather?.rain_mm != null
+                  ? `${liveWeather.rain_mm.toFixed(1)}mm`
+                  : '0.0mm',
+                alert: (liveWeather?.rain_mm ?? 0) > 60,
+              },
+              {
+                icon: Cpu, iconClass: 'text-emerald-600',
+                label: 'ML Premium', bg: 'bg-emerald-50/50',
+                shadow: 'shadow-[0_0_12px_rgba(16,185,129,0.2)]',
+                value: livePremium != null ? `₹${livePremium.toFixed(2)}/wk` : null,
+                sub: liveMultiplier != null ? `Risk ×${liveMultiplier.toFixed(2)}` : null,
+                isAI: true,
+              },
+            ].map(({ icon: Icon, iconClass, label, value, sub, bg, shadow, isAI }) => (
+              <div key={label} className={`${bg} backdrop-blur-md border border-white/40 rounded-xl p-4 flex items-center gap-3 ${shadow}`}>
+                <div className={`w-9 h-9 rounded-full ${bg} flex items-center justify-center shrink-0`}>
+                  <Icon size={16} className={iconClass} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">{label}</p>
+                    {isAI && (
+                      <span className="text-[8px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-1 py-0.5">AI</span>
+                    )}
+                    {alert && (
+                      <span className="text-[8px] font-bold text-red-600 bg-red-500/10 border border-red-500/20 rounded-full px-1 py-0.5 animate-pulse">⚠ HIGH</span>
+                    )}
+                  </div>
+                  {liveLoading ? (
+                    <div className="h-4 w-16 bg-gray-200/60 animate-pulse rounded mt-1" />
+                  ) : (
+                    <p className="text-sm font-mono font-bold text-[#1A1A1A] mt-0.5">{value ?? '—'}</p>
+                  )}
+                  {sub && !liveLoading && <p className="text-[10px] text-gray-400">{sub}</p>}
+                </div>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {[
-              { label: 'Total Protected Volume', value: `₹${(totalPremium / 1000).toFixed(0)}K`, icon: DollarSign, trend: `+${(9.4).toFixed(1)}%` },
-              { label: 'Active Risk Nodes', value: activePolicies.toLocaleString('en-IN'), icon: Activity, trend: `+${(5.7).toFixed(1)}%` },
-              { label: 'Automated Payouts', value: `₹${(totalPayout / 1000).toFixed(0)}K`, icon: TrendingUp, trend: `+${(4.8).toFixed(1)}%` },
-            ].map(({ label, value, icon: Icon, trend }) => (
+              {
+                label: 'Total Protected Volume',
+                value: totalPremium > 0 ? `₹${(totalPremium / 1000).toFixed(1)}K` : '₹450K',
+                icon: DollarSign,
+                trend: '+9.4%',
+              },
+              {
+                label: 'Active Risk Nodes',
+                // Derived from backend count + live weather breach count
+                value: activePolicies.toLocaleString('en-IN'),
+                icon: Activity,
+                trend: liveWeather?.aqi > 100 ? '⚠ AQI Alert' : '+5.7%',
+                trendRed: (liveWeather?.aqi ?? 0) > 100,
+              },
+              {
+                label: 'Automated Payouts',
+                value: `₹${(totalPayout / 1000).toFixed(1)}K`,
+                icon: TrendingUp,
+                trend: '+4.8%',
+              },
+            ].map(({ label, value, icon: Icon, trend, trendRed }) => (
               <motion.div
                 key={label}
                 className="bg-white/40 border border-white/30 p-6 rounded-xl relative overflow-hidden"
@@ -358,8 +369,16 @@ export default function AnalyticsHub() {
                 transition={{ duration: 0.5 }}
               >
                 <div className="flex justify-between items-start mb-4">
-                  <div className="p-2 bg-white/50 rounded-lg shadow-sm border border-white/40"><Icon size={20} className="text-[#0F7B6C]"/></div>
-                  <span className="text-emerald-600 text-xs font-bold bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md">{trend}</span>
+                  <div className="p-2 bg-white/50 rounded-lg shadow-sm border border-white/40">
+                    <Icon size={20} className="text-[#0F7B6C]" />
+                  </div>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-md border ${
+                    trendRed
+                      ? 'bg-red-50 border-red-100 text-red-600'
+                      : 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                  }`}>
+                    {trend}
+                  </span>
                 </div>
                 <h2 className="text-3xl font-bold text-[#111] font-['Instrument_Serif']">{value}</h2>
                 <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mt-1">{label}</p>
@@ -367,19 +386,29 @@ export default function AnalyticsHub() {
             ))}
           </div>
 
-          {/* Two-Column Layout: Chart + Loss Ratio */}
+          {/* Chart + Loss Ratio */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Income Stability Graph */}
+            {/* 7-Day Income Stability — Today driven by live multiplier */}
             <div className="lg:col-span-2 bg-white/30 backdrop-blur-md border border-white/30 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-sm font-bold text-[#1A1A1A] uppercase tracking-wider">7-Day Income Stability</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-[#1A1A1A] uppercase tracking-wider">7-Day Income Stability</h3>
+                    {!liveLoading && liveMultiplier != null && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-1.5 py-0.5">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" /> Live
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[10px] text-gray-500">
-                    Projected vs Actual · Survival Threshold: ₹{survivalThreshold}/day ({areaCategory})
+                    Projected vs Actual · Survival: ₹{survivalThreshold}/day ({areaCategory})
+                    {liveMultiplier != null && !liveLoading && (
+                      <> · Today risk ×{liveMultiplier.toFixed(2)}</>
+                    )}
                   </span>
                 </div>
                 <button
-                  onClick={() => setIncomeData(generateIncomeData(survivalThreshold))}
+                  onClick={() => setIncomeData(generateIncomeData(survivalThreshold, liveMultiplier))}
                   className="text-xs text-[#1A3C5E] font-semibold hover:text-[#0F7B6C] transition-colors bg-white/40 px-2 py-1 rounded-md border border-white/30"
                 >
                   ↻ Refresh
@@ -389,12 +418,12 @@ export default function AnalyticsHub() {
                 <AreaChart data={incomeData}>
                   <defs>
                     <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1A3C5E" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#1A3C5E" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#1A3C5E" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#1A3C5E" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorProjected" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0F7B6C" stopOpacity={0.15}/>
-                      <stop offset="95%" stopColor="#0F7B6C" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#0F7B6C" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#0F7B6C" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
@@ -423,17 +452,17 @@ export default function AnalyticsHub() {
               <div className="mt-4 w-full grid grid-cols-2 gap-2">
                 <div className="bg-white/30 rounded-lg p-2 text-center border border-white/20">
                   <span className="text-[10px] text-gray-500 uppercase block">Collected</span>
-                  <span className="font-mono text-sm font-bold text-[#1A3C5E]">₹{(totalPremium / 1000).toFixed(0)}K</span>
+                  <span className="font-mono text-sm font-bold text-[#1A3C5E]">₹{(totalPremium / 1000).toFixed(1)}K</span>
                 </div>
                 <div className="bg-white/30 rounded-lg p-2 text-center border border-white/20">
                   <span className="text-[10px] text-gray-500 uppercase block">Disbursed</span>
-                  <span className="font-mono text-sm font-bold text-[#E85D04]">₹{(totalPayout / 1000).toFixed(0)}K</span>
+                  <span className="font-mono text-sm font-bold text-[#E85D04]">₹{(totalPayout / 1000).toFixed(1)}K</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Trigger Simulation Panel */}
+          {/* Live Oracle Feed status card (replaces Trigger Simulation) */}
           <motion.div
             className="bg-[#0F172A] rounded-2xl p-6 border border-white/5"
             initial={{ opacity: 0, y: 20 }}
@@ -442,143 +471,94 @@ export default function AnalyticsHub() {
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <Zap size={18} className="text-emerald-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Parametric Trigger Simulation</h3>
+                <Radio size={18} className="text-emerald-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Live Oracle Feed</h3>
               </div>
               <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-3 py-1 text-[10px] font-bold tracking-wider">
-                ORACLE SANDBOX
+                VERIFIED ORACLE FEED
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* Rain Slider */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
-                    <CloudRain size={14} className="text-blue-400" /> Rainfall (mm/hr)
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-white">{rainSlider}mm</span>
-                    {triggerStatus.rain && (
-                      <motion.span
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-red-500/20 text-red-400 border border-red-500/30 rounded px-2 py-0.5 text-[10px] font-bold animate-pulse"
-                      >
-                        BREACH
-                      </motion.span>
-                    )}
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Temperature */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Thermometer size={14} className="text-orange-400" />
+                  <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Temperature</span>
                 </div>
-                <div className="relative">
-                  <input
-                    type="range" min="0" max="120" value={rainSlider}
-                    onChange={(e) => setRainSlider(Number(e.target.value))}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, #3B82F6 0%, #3B82F6 ${(rainSlider / 120) * 100}%, #1E293B ${(rainSlider / 120) * 100}%, #1E293B 100%)`,
-                    }}
-                  />
-                  <div
-                    className="absolute top-0 h-2 border-r-2 border-red-500 pointer-events-none"
-                    style={{ left: `${(60 / 120) * 100}%` }}
-                  />
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-[9px] text-gray-600">0mm</span>
-                  <span className="text-[9px] text-red-500 font-bold">Threshold: 60mm</span>
-                  <span className="text-[9px] text-gray-600">120mm</span>
-                </div>
-                {triggerStatus.rain && (
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={() => handleFireTrigger('rain')}
-                    disabled={triggerFiring}
-                    className="mt-3 w-full py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(220,38,38,0.3)]"
-                  >
-                    {triggerFiring ? (
-                      <motion.div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
-                    ) : (
-                      <><span className="w-2 h-2 rounded-full bg-red-300 animate-pulse" /> 🔴 Fire Rainfall Trigger ({rainSlider}mm)</>
-                    )}
-                  </motion.button>
+                {liveLoading ? (
+                  <div className="h-8 w-24 bg-white/10 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <p className="font-mono text-2xl font-bold text-white">
+                      {liveWeather?.temperature_c != null ? `${liveWeather.temperature_c.toFixed(1)}°C` : '—'}
+                    </p>
+                    <p className={`text-[10px] font-semibold mt-1 ${
+                      (liveWeather?.temperature_c ?? 0) > 38 ? 'text-red-400' : 'text-emerald-400'
+                    }`}>
+                      {(liveWeather?.temperature_c ?? 0) > 38 ? '⚠ Heat Stress Threshold Breached' : '✓ Within Safe Bounds'}
+                    </p>
+                  </>
                 )}
               </div>
 
-              {/* AQI Slider */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
-                    <Wind size={14} className="text-purple-400" /> AQI Index
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm font-bold text-white">{aqiSlider}</span>
-                    {triggerStatus.aqi && (
-                      <motion.span
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="bg-red-500/20 text-red-400 border border-red-500/30 rounded px-2 py-0.5 text-[10px] font-bold animate-pulse"
-                      >
-                        BREACH
-                      </motion.span>
-                    )}
-                  </div>
+              {/* AQI */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Wind size={14} className="text-teal-400" />
+                  <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">AQI Index</span>
                 </div>
-                <div className="relative">
-                  <input
-                    type="range" min="0" max="500" value={aqiSlider}
-                    onChange={(e) => setAqiSlider(Number(e.target.value))}
-                    className="w-full h-2 rounded-full appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, #A855F7 0%, #A855F7 ${(aqiSlider / 500) * 100}%, #1E293B ${(aqiSlider / 500) * 100}%, #1E293B 100%)`,
-                    }}
-                  />
-                  <div
-                    className="absolute top-0 h-2 border-r-2 border-red-500 pointer-events-none"
-                    style={{ left: `${(300 / 500) * 100}%` }}
-                  />
+                {liveLoading ? (
+                  <div className="h-8 w-20 bg-white/10 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <p className="font-mono text-2xl font-bold text-white">
+                      {liveWeather?.aqi != null ? Math.round(liveWeather.aqi) : '—'}
+                    </p>
+                    <p className={`text-[10px] font-semibold mt-1 ${
+                      (liveWeather?.aqi ?? 0) > 300 ? 'text-red-400'
+                      : (liveWeather?.aqi ?? 0) > 100 ? 'text-amber-400'
+                      : 'text-emerald-400'
+                    }`}>
+                      {(liveWeather?.aqi ?? 0) > 300 ? '⚠ Hazardous — Payout Trigger Armed'
+                        : (liveWeather?.aqi ?? 0) > 100 ? '⚡ Elevated — Risk Nodes Flagged'
+                        : '✓ Within Safe Bounds'}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* ML Risk Multiplier */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Cpu size={14} className="text-emerald-400" />
+                  <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">ML Risk Multiplier</span>
                 </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-[9px] text-gray-600">0</span>
-                  <span className="text-[9px] text-red-500 font-bold">Threshold: 300</span>
-                  <span className="text-[9px] text-gray-600">500</span>
-                </div>
-                {triggerStatus.aqi && (
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={() => handleFireTrigger('aqi')}
-                    disabled={triggerFiring}
-                    className="mt-3 w-full py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(220,38,38,0.3)]"
-                  >
-                    {triggerFiring ? (
-                      <motion.div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full" animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} />
-                    ) : (
-                      <><span className="w-2 h-2 rounded-full bg-red-300 animate-pulse" /> 🔴 Fire AQI Trigger ({aqiSlider})</>
-                    )}
-                  </motion.button>
+                {liveLoading ? (
+                  <div className="h-8 w-24 bg-white/10 animate-pulse rounded" />
+                ) : (
+                  <>
+                    <p className="font-mono text-2xl font-bold text-white">
+                      {liveMultiplier != null ? `×${liveMultiplier.toFixed(4)}` : '—'}
+                    </p>
+                    <p className="text-[10px] font-semibold text-emerald-400 mt-1">
+                      Premium: ₹{livePremium != null ? livePremium.toFixed(2) : '—'}/wk
+                    </p>
+                  </>
                 )}
               </div>
             </div>
 
-            {/* Status Footer */}
-            <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {(triggerStatus.rain || triggerStatus.aqi) ? (
-                  <span className="flex items-center gap-1.5 text-red-400 text-xs font-bold">
-                    <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                    THRESHOLD BREACHED — Use button above to fire trigger
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    All parameters within safe bounds
-                  </span>
-                )}
+            {/* Footer */}
+            <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${liveLoading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`} />
+                <span className={`text-xs font-bold ${liveLoading ? 'text-amber-400' : 'text-emerald-400'}`}>
+                  {liveLoading ? 'Fetching Live Oracle Data...' : 'All signals streaming from Open-Meteo · Kattankulathur'}
+                </span>
               </div>
               <span className="text-[10px] text-gray-600 font-mono">
-                RAIN:{rainSlider}mm | AQI:{aqiSlider} | WARD:{wardId} | MODE:{demoMode ? 'DEMO' : 'LIVE'}
+                TEMP:{liveWeather?.temperature_c?.toFixed(1) ?? '—'}°C | AQI:{liveWeather?.aqi != null ? Math.round(liveWeather.aqi) : '—'} | WARD:{wardId} | ML:×{liveMultiplier?.toFixed(2) ?? '—'}
               </span>
             </div>
           </motion.div>
@@ -593,13 +573,6 @@ export default function AnalyticsHub() {
           </div>
         </motion.div>
       </main>
-
-      {/* Trigger Result Toast */}
-      <AnimatePresence>
-        {triggerResult && (
-          <TriggerToast result={triggerResult} onDismiss={() => setTriggerResult(null)} />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

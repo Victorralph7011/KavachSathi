@@ -255,6 +255,9 @@ class PremiumRequest(BaseModel):
     area_category: AreaCategory
     ward_id: str = Field(..., description="Ward for regional risk lookup")
     city: str = Field(default="Delhi")
+    temp: Optional[float] = Field(default=30.0, description="Local temperature in Celsius")
+    aqi: Optional[float] = Field(default=100.0, description="Local Air Quality Index")
+    traffic: Optional[float] = Field(default=5.0, description="Traffic congestion index")
 
     @field_validator("persona")
     @classmethod

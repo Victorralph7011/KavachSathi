@@ -7,7 +7,8 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Node
+node_modules/
 dist
 dist-ssr
 *.local
@@ -29,9 +30,23 @@ dist-ssr
 .env.*.local
 *.env
 
+# Vercel
 .vercel
 
 # Python Backend
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.venv/
+venv/
+
+# ============================================================
+# SECRETS — Never commit these. Add as environment variables
+# in your cloud provider (Railway, Render, Fly.io, etc.)
+# ============================================================
+serviceAccountKey.json
+
+# ML Model binary files
+# NOTE: keep *.pkl files committed if each is under 50MB.
+# Uncomment the line below to exclude them if they are too large.
+# *.pkl

@@ -231,7 +231,7 @@ export function calculateRiskScore(stateName, platformRiskModifier, coords = nul
 export function calculatePremium(grade, termType = 'weekly', safeZoneDiscount = 0) {
   const BASE_PREMIUMS = {
     A: { weekly: 25 },
-    B: { weekly: 40 },
+    B: { weekly: 35 },  // Grade B fallback — only used when ML engine is unreachable
     C: { weekly: 50 },  // Hard-capped at ₹50 (compliance)
   };
   

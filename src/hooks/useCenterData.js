@@ -29,7 +29,7 @@ export function useCenterData() {
             ? [{
                 id: 'mock-pay-1',
                 status: 'SUCCESS',
-                amount: activePolicy.estimatedPremium || 40,
+                amount: activePolicy.estimatedPremium || 0,
                 paymentId: 'pay_MOCK1234567890',
                 createdAt: activePolicy.issuedAt || new Date().toISOString(),
               }]

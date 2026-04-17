@@ -123,7 +123,7 @@ export default function RegistrationWizard() {
         riskScore: values.riskScore,
         riskGrade: values.riskGrade,
         riskFactors: values.riskFactors,
-        estimatedPremium: values.premiumAmount || 40,
+        estimatedPremium: values.premiumAmount || values.backendPremium || 0,
         safeZoneDiscount: values.safeZone?.discount || 0,
         discounts: values.safeZone?.isSafe
           ? [{ type: 'SAFE_ZONE', amount: values.safeZone.discount, zone: values.safeZone.zoneName }]
@@ -148,7 +148,7 @@ export default function RegistrationWizard() {
       if (policyId) {
         await issuePolicy(policyId, {
           ...paymentData,
-          amount: values.premiumAmount || 40,
+          amount: values.premiumAmount || values.backendPremium || 0,
         });
       }
       

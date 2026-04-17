@@ -4,7 +4,7 @@ KavachSathi — Premium Pricing Router
 
 Exposes the actuarial pricing engine via REST API.
 """
-
+from services.ml_service import get_dynamic_premium
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,12 +36,11 @@ async def get_quote(request: PremiumRequest) -> PremiumResponse:
     """
     Calculate the weekly premium for a gig worker.
     
-    Formula: Premium = P(Trigger) × L_avg × D_exposed × RiskMultiplier
+    Formula: Premium = (Actuarial_Base) × ML_Risk_Multiplier
     Bounds: ₹20 – ₹50 per week (hard cap)
-    
-    The response includes a full formula breakdown for transparency.
     """
     try:
+        # 1. Get the standard actuarial calculation
         response = calculate_premium(
             persona=request.persona,
             area_category=request.area_category,
@@ -49,7 +48,33 @@ async def get_quote(request: PremiumRequest) -> PremiumResponse:
             city=request.city,
             billing_cycle=request.billing_cycle,
         )
+
+        # 2. CALL THE ML ENGINE
+        # Use values from the request (Antigravity should have updated models.py to include these)
+        # If the request doesn't have them, it will use the defaults we set.
+        ml_data = await get_dynamic_premium(
+            temp=getattr(request, 'temp', 30.0), 
+            aqi=getattr(request, 'aqi', 100.0), 
+            traffic=getattr(request, 'traffic', 5.0)
+        )
+
+        # 3. APPLY ML MULTIPLIER
+        multiplier = ml_data.get("risk_multiplier", 1.0)
+        
+        # Adjust the premium
+        adjusted_premium = response.premium * multiplier
+        
+        # 4. ENFORCE BOUNDS (₹20 - ₹50)
+        final_premium = max(PREMIUM_FLOOR, min(adjusted_premium, PREMIUM_CEILING))
+
+        # 5. UPDATE RESPONSE
+        response.premium = round(final_premium, 2)
+        
+        # Add a note for transparency so the worker knows WHY the price changed
+        response.formula_breakdown += f" | ML Risk Multiplier: {multiplier:.2f} (AQI/Temp factor)"
+
         return response
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
