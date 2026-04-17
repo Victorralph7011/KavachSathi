@@ -3,7 +3,7 @@
 </div>
 
 <p align="center">
-  <b>Phase 2 System Design & Execution</b><br>
+  <b>Phase 3 Intelligence, Automation & Scale</b><br>
   <i>A data-driven safety net for India's gig economy</i>
 </p>
 
@@ -11,23 +11,18 @@
 
 # Table of Contents
 
-| **PHASE 1 – System Foundation**                                     | **PHASE 2 – Execution & Evaluation**                                        |
-| ------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [Problem Statement](#-problem-statement)                            | [Registration Process](#registration-process)                               |
-| [Why This Matters](#why-this-matters)                               | [Insurance Policy Management](#insurance-policy-management)                 |
-| [Proposed Concept](#proposed-concept-kavachsathi)                   | [Dynamic Premium Calculation](#dynamic-premium-calculation)                 |
-| [Core System Pillars](#core-system-pillars)                         | [Claims Management](#claims-management)                                     |
-| [Target User Persona](#target-user-persona)                         | [Risk-Capping Mechanism](#risk-capping-mechanism)                           |
-| [Workflow Scenario](#workflow-scenario)                             | [Segment-Specific Insights](#segment-specific-insights)                     |
-| [System Architecture](#system-architecture)                         | [Financial Viability Analysis](#financial-viability-analysis)               |
-| [Decision Engine](#decision-engine-core-innovation)                 | [Exclusions and Regulatory Awareness](#exclusions-and-regulatory-awareness) |
-| [Decision Tree](#decision-tree)                                     |                                                                             |
-| [Trigger Table](#trigger-table)                                     |                                                                             |
-| [Adversarial Defense](#adversarial-defense--anti-spoofing-strategy) |                                                                             |
-| [Technology Stack](#technology-stack)                               |                                                                             |
-| [Development Roadmap](#development-roadmap)                         |                                                                             |
-| [Team](#team)                                                       |                                                                             |
-| [Vision](#vision)                                                   |                                                                             |
+| **PHASE 1 – System Foundation**                     | **PHASE 2 – Execution & Evaluation**                                        | **PHASE 3 – Intelligence & Scale**                        |
+| --------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- |
+| [Problem Statement](#-problem-statement)            | [Registration Process](#registration-process)                               | [Advanced Fraud Detection](#advanced-fraud-detection)     |
+| [Why This Matters](#why-this-matters)               | [Insurance Policy Management](#insurance-policy-management)                 | [Instant Payout System](#instant-payout-system-simulated) |
+| [Proposed Concept](#proposed-concept-kavachsathi)   | [Dynamic Premium Calculation](#dynamic-premium-calculation)                 | [Intelligent Dashboard](#intelligent-dashboard)           |
+| [Core System Pillars](#core-system-pillars)         | [Claims Management](#claims-management)                                     | [Worker Dashboard](#worker-dashboard)                     |
+| [Target User Persona](#target-user-persona)         | [Risk-Capping Mechanism](#risk-capping-mechanism)                           | [Admin Dashboard](#admin-dashboard)                       |
+| [Workflow Scenario](#workflow-scenario)             | [Segment-Specific Insights](#segment-specific-insights)                     | [Zero-Touch Claim Workflow](#zero-touch-claim-workflow)   |
+| [System Architecture](#system-architecture)         | [Financial Viability Analysis](#financial-viability-analysis)               | [Local Setup & Installation](#local-setup--installation)  |
+| [Decision Engine](#decision-engine-core-innovation) | [Exclusions and Regulatory Awareness](#exclusions-and-regulatory-awareness) | [IRDAI Compliance](#irdai-compliance)                     |
+| [Decision Tree](#decision-tree)                     | [Technology Stack](#technology-stack)                                       | [Development Roadmap](#development-roadmap)               |
+| [Trigger Table](#trigger-table)                     | [Team](#team)                                                               | [Vision](#vision)                                         |
 
 ---
 
@@ -55,7 +50,7 @@ pie title Weekly Income Loss Due to Disruptions
 
 # Why This Matters
 
-India has over 7 million gig workers, heavily dependent on daily income.
+India has over 7 million gig workers heavily dependent on daily income.
 
 Even short disruptions (1–2 days) can significantly impact financial stability.
 
@@ -85,8 +80,6 @@ If disruptions reduce earning capacity, the system automatically compensates inc
 <p align="center">
   <img src="images/persona.png" width="750">
 </p>
-
-### User Personas
 
 | Attribute         | Full-Time Earner      | Part-Time Earner    |
 | ----------------- | --------------------- | ------------------- |
@@ -163,15 +156,10 @@ Risk Score = 64 → Partial payout
 ### Payout Logic
 
 ```text
-Risk > 70 → High Payout  
-40–70 → Partial  
-< 40 → No Payout  
+Risk > 70 → High Payout
+40–70 → Partial
+< 40 → No Payout
 ```
-
-This model ensures:
-
-* Objective, bias-free payouts
-* Real-time automated claim execution
 
 ---
 
@@ -266,9 +254,7 @@ H --> I[Payout]
 </p>
 
 <p align="center">
-  <a href="images/policy.pdf" target="_blank">
-    <img src="https://img.shields.io/badge/View%20Full%20Policy-PDF-blue?style=for-the-badge" />
-  </a>
+  <a href="images/policy.pdf" target="_blank">View Full Policy PDF</a>
 </p>
 
 ---
@@ -302,25 +288,26 @@ H --> I[Payout]
 * Weekly caps
 * Event caps
 * Loss ratio monitoring
-* Auto-stop if >85%
+* Auto-stop if >85% payout ratio
 
 ---
 
 # Segment-Specific Insights
 
-* Urban → partial loss
-* Rural → full loss
-* Full-time → high dependency
-* Part-time → flexible
+* Urban workers → partial disruption patterns
+* Rural workers → higher route dependency
+* Full-time workers → high income dependency
+* Part-time workers → flexible earnings model
 
 ---
 
 # Financial Viability Analysis
 
 * Premium: ₹20–₹50
-* Loss ratio: 60–70%
+* Loss ratio target: 60–70%
 
 Example:
+
 1000 users → ₹40,000
 Payout → ₹26,000
 Profit → ₹14,000
@@ -331,21 +318,24 @@ Profit → ₹14,000
 
 ### Exclusions
 
-* Health
+* Health claims
 * Vehicle damage
-* Non-disruption loss
+* Intentional misuse
+* Non-disruption income loss
 
 ### Compliance
 
-* Parametric insurance model
-* IRDAI aligned
+* Parametric insurance aligned structure
+* Transparent triggers
+* Audit-ready logs
 
 ---
 
 # Adversarial Defense & Anti-Spoofing Strategy
 
-* Multi-signal validation
-* Behavioral consistency
+```text
+Fraud Score = (Motion × 0.3) + (Network × 0.2) + (Location × 0.3) + (Cluster × 0.2)
+```
 
 ```mermaid
 flowchart TD
@@ -358,30 +348,205 @@ F -- Yes --> G[Block / Delay]
 F -- No --> H[Send to Risk Engine]
 ```
 
-```text
-Fraud Score = (Motion × 0.3) + (Network × 0.2) + (Location × 0.3) + (Cluster × 0.2)
+---
+
+# 🔷 PHASE 3 – INTELLIGENCE & SCALE
+
+# Advanced Fraud Detection
+
+* GPS spoof detection
+* Device fingerprint mismatch detection
+* Impossible speed / route anomaly detection
+* Same device multi-account claim detection
+* Repeated suspicious trigger behavior analysis
+* Cluster fraud analytics across zones
+
+```mermaid
+flowchart LR
+A[Claim Trigger] --> B[Device Check]
+B --> C[GPS Validation]
+C --> D[Speed Analysis]
+D --> E[Behavior Score]
+E --> F{Fraud High?}
+F -- Yes --> G[Delay / Review]
+F -- No --> H[Approve Claim]
 ```
+
+---
+
+# Instant Payout System (Simulated)
+
+* Auto payout after trigger + fraud clearance
+* Razorpay-based simulated transfer flow
+* Wallet balance updated instantly
+* Claim receipt generated
+* SMS / Email / WhatsApp alert sent
+
+```mermaid
+flowchart LR
+A[Approved Claim] --> B[Razorpay Trigger]
+B --> C[Transfer Success]
+C --> D[Wallet Updated]
+D --> E[Receipt Logged]
+E --> F[User Notified]
+```
+
+---
+
+# Intelligent Dashboard
+
+Unified analytics layer for workers and insurers.
+
+---
+
+# Worker Dashboard
+
+* Earnings protected till date
+* Active weekly coverage
+* Current premium due
+* Claim history
+* Risk alerts for next 24h
+* Wallet payout history
+
+<p align="center">
+  <img src="images/dashboard-worker.png" width="700">
+</p>
+
+---
+
+# Admin Dashboard
+
+* Total active users
+* Premium collected vs payouts
+* Loss ratios
+* High-risk zones heatmap
+* Fraud alerts
+* Predictive analytics for next week weather/disruption claims
+
+<p align="center">
+  <img src="images/dashboard-admin.png" width="700">
+</p>
+
+---
+
+# Zero-Touch Claim Workflow
+
+```mermaid
+sequenceDiagram
+    participant W as Worker
+    participant S as KavachSathi System
+    participant KYC as Identity Engine
+    participant API as External APIs
+    participant AI as AI Service
+    participant UPI as Razorpay UPI
+
+    Note over W,UPI: Phase 1 - Onboarding & KYC
+    W->>S: OTP Login & Signup
+    S->>KYC: Aadhaar/PAN Verification
+    KYC-->>S: Verified Response
+    W->>S: Select Plan
+    S->>UPI: Premium Payment
+    UPI-->>S: Success
+    S-->>W: Policy Activated
+
+    Note over W,UPI: Phase 2 - Zero Touch Claims
+    loop Every 15-60 Minutes
+        S->>API: Poll weather / AQI / platform
+        API-->>S: Live Data
+    end
+
+    S->>API: Confirm threshold with second source
+    API-->>S: Confirmed
+    S->>AI: Run fraud score
+    AI-->>S: Clean
+    S->>UPI: Initiate payout
+    UPI-->>W: Amount Credited
+    S-->>W: Alert Notification
+```
+
+---
+
+# Local Setup & Installation
+
+## Prerequisites
+
+* Node.js v18+
+* Python 3.9+
+* Git
+* FireBase
+
+## Step 1 — Clone Repository
+
+```bash
+git clone https://github.com/Victorralph7011/KavachSathi.git
+cd KavachSathi
+```
+
+## Step 2 — Backend REST Engine
+
+```bash
+cd backend
+.\venv\Scripts\activate
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## Step 3 — Frontend
+
+```bash
+npm install
+npm run dev
+```
+
+## Step 4 — ML Engine
+
+```bash
+cd kavachsathi_ml_engine
+.\venv\Scripts\activate
+python app.py
+```
+
+## Architecture Runtime
+
+```text
+Frontend (Next.js)            :3000
+Backend REST Engine (FastAPI) :8000
+ML Engine (Python)            :5001
+FireBase                      :27017
+```
+
+---
+
+# IRDAI Compliance
+
+| IRDAI Requirement      | Our Implementation                   |
+| ---------------------- | ------------------------------------ |
+| Transparent pricing    | Dynamic premium shown before payment |
+| Claim audit trail      | Every payout logged with timestamp   |
+| Fair treatment         | Rule + AI based equal trigger logic  |
+| Fraud prevention       | Multi-signal validation engine       |
+| Policy wording clarity | Trigger conditions clearly visible   |
+| User notification      | Instant alerts on policy / payout    |
 
 ---
 
 # Technology Stack
 
-| Layer    | Technology       |
-| -------- | ---------------- |
-| Frontend | React / Next.js  |
-| Backend  | Node.js          |
-| Database | MongoDB          |
-| AI       | Python           |
-| APIs     | Weather, Traffic |
-| Payments | Razorpay         |
+| Layer    | Technology              |
+| -------- | ----------------------- |
+| Frontend | React / Next.js         |
+| Backend  | Node.js / FastAPI       |
+| Database | MongoDB                 |
+| AI / ML  | Python / Scikit-learn   |
+| APIs     | Weather / Traffic / AQI |
+| Payments | Razorpay                |
 
 ---
 
 # Development Roadmap
 
-Phase 1 → Concept
-Phase 2 → API + Risk Engine
-Phase 3 → Automation
+Phase 1 → Concept & Architecture
+Phase 2 → Execution & APIs
+Phase 3 → Intelligence, Fraud AI, Dashboards, Instant Payouts
 
 ---
 
@@ -392,7 +557,7 @@ Phase 3 → Automation
 | Eashan Darsh        | System Architecture |
 | Ved Deshmukh        | Research            |
 | Shashwat Chaturvedi | Backend             |
-| Sneha Basera        | Data                |
+| Sneha Basera        | DataBase                |
 | Asim Shankar        | AI                  |
 
 ---
@@ -401,4 +566,4 @@ Phase 3 → Automation
 
 KavachSathi transforms insurance into real-time protection.
 
----
+From claim-based insurance to trigger-based protection.
