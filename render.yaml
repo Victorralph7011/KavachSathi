@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: kavachsathi-backend
+    env: python
+    buildCommand: "cd backend && pip install -r requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+  - type: web
+    name: kavachsathi-ml-engine
+    env: python
+    buildCommand: "cd kavachsathi_ml_engine && pip install -r requirements.txt"
+    startCommand: "cd kavachsathi_ml_engine && gunicorn app:app --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
